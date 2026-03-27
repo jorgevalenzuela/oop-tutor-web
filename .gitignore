@@ -1,0 +1,27 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+dist/
+
+# Chroma vector database
+chroma_db/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+uvicorn.log
+
+# OS files
+.DS_Store
+Thumbs.db

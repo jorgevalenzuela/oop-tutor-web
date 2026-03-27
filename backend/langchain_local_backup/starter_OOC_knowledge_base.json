@@ -1,0 +1,402 @@
+[
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Foundations",
+        "Topic": "Programming Paradigms",
+        "Definition": "A programming paradigm is a style or way of programming that provides a distinct approach to solving problems.",
+        "Content": "Programming paradigms describe fundamental approaches to designing and structuring code. Common paradigms include imperative (step-by-step commands), functional (computation as evaluation of functions), and object-oriented (modeling real-world entities as objects).",
+        "Contrast-With": [],
+        "Examples": [
+            "Imperative",
+            "Functional",
+            "Object-Oriented"
+        ],
+        "Key-Concepts": [
+            "Paradigm",
+            "Imperative",
+            "Functional",
+            "Object-Oriented"
+        ],
+        "Level": "Beginner",
+        "Learning-Goal": "Students will be able to identify and describe different programming paradigms.",
+        "Common-Misconceptions": [
+            "One paradigm is always better than all others",
+            "All modern languages are purely object-oriented"
+        ],
+        "Question-Prompts": [
+            "Name three programming paradigms and briefly describe each.",
+            "Which paradigm focuses on functions as first-class citizens?"
+        ],
+        "Related-Topics": [
+            "Object-Oriented Programming",
+            "Imperative Programming",
+            "Functional Programming"
+        ],
+        "References": [
+            "Concepts of Programming Languages by Robert Sebesta"
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Foundations",
+        "Topic": "Object-Oriented Programming",
+        "Definition": "OOP is a programming paradigm where solutions are modeled as interacting objects with state and behavior.",
+        "Content": "In OOP, you design software by modeling real-world concepts as objects that contain data (state) and methods (behavior). Objects communicate via message passing. OOP emphasizes encapsulation, abstraction, inheritance, and polymorphism.",
+        "Contrast-With": [
+            "Imperative Programming",
+            "Functional Programming"
+        ],
+        "Examples": [
+            "Java",
+            "C#",
+            "C++",
+            "Python"
+        ],
+        "Key-Concepts": [
+            "Objects",
+            "Classes",
+            "Methods",
+            "Encapsulation",
+            "Polymorphism"
+        ],
+        "Level": "Beginner",
+        "Learning-Goal": "Students will be able to explain the core idea of OOP and identify its key principles.",
+        "Common-Misconceptions": [
+            "OOP is just about using classes",
+            "All problems are best solved with OOP"
+        ],
+        "Question-Prompts": [
+            "What are the four pillars of OOP?",
+            "How does OOP differ from imperative programming?"
+        ],
+        "Related-Topics": [
+            "Encapsulation",
+            "Abstraction",
+            "Inheritance",
+            "Polymorphism"
+        ],
+        "References": [
+            "Design Patterns: Elements of Reusable Object-Oriented Software by Gamma et al."
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Foundations",
+        "Topic": "Object-Oriented Design",
+        "Definition": "OOD is the process of planning and structuring software using object-oriented principles before coding.",
+        "Content": "OOD focuses on analyzing requirements and modeling systems using classes, objects, and their relationships. It emphasizes reusability, modularity, and maintainability. Tools like UML diagrams are often used in OOD.",
+        "Contrast-With": [
+            "Procedural Design",
+            "Ad-hoc Coding"
+        ],
+        "Examples": [
+            "UML Class Diagrams",
+            "Sequence Diagrams"
+        ],
+        "Key-Concepts": [
+            "Modeling",
+            "UML",
+            "Modularity",
+            "Design Principles"
+        ],
+        "Level": "Intermediate",
+        "Learning-Goal": "Students will be able to create basic object-oriented designs from problem descriptions.",
+        "Common-Misconceptions": [
+            "OOD is the same as OOP",
+            "OOD requires UML diagrams",
+            "OOD means just drawing classes"
+        ],
+        "Question-Prompts": [
+            "What is the difference between OOD and OOP?",
+            "Why is OOD important before writing code?"
+        ],
+        "Related-Topics": [
+            "Classes",
+            "Objects",
+            "UML Basics",
+            "Design Principles"
+        ],
+        "References": [
+            "Object-Oriented Analysis and Design with Applications by Grady Booch"
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Core OOP Building Blocks",
+        "Topic": "Class",
+        "Definition": "A class is a blueprint for creating objects, defining their state (fields/properties) and behavior (methods).",
+        "Content": "Classes encapsulate data and functions into a single unit. An object is an instance of a class. Classes enable abstraction, encapsulation, and code reuse. In many languages, they support inheritance and polymorphism.",
+        "Contrast-With": [
+            "Structs (in some languages)",
+            "Procedural Functions"
+        ],
+        "Examples": [
+            "Java Class with fields and methods",
+            "C# Class with properties"
+        ],
+        "Key-Concepts": [
+            "Fields",
+            "Properties",
+            "Methods",
+            "Instance"
+        ],
+        "Level": "Beginner",
+        "Learning-Goal": "Students will be able to define a class and create objects from it.",
+        "Common-Misconceptions": [
+            "A class is the same as an object",
+            "You can use methods without creating an object (unless static)"
+        ],
+        "Question-Prompts": [
+            "What is the relationship between a class and an object?",
+            "Give an example of a simple class in your preferred language."
+        ],
+        "Related-Topics": [
+            "Object",
+            "Fields",
+            "Properties",
+            "Methods"
+        ],
+        "References": [
+            "Official Java and C# documentation"
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Core OOP Building Blocks",
+        "Topic": "Object",
+        "Definition": "An object is an instance of a class, representing a specific entity with its own state and behavior.",
+        "Content": "Objects are created from classes and contain actual values for fields and methods that can act on those values. Objects interact by sending messages (method calls).",
+        "Contrast-With": [
+            "Class (blueprint)",
+            "Procedural Variables"
+        ],
+        "Examples": [
+            "A Car object created from a Car class",
+            "A User object in a web application"
+        ],
+        "Key-Concepts": [
+            "Instance",
+            "State",
+            "Behavior",
+            "Message Passing"
+        ],
+        "Level": "Beginner",
+        "Learning-Goal": "Students will be able to instantiate objects from classes and explain the role of an object in OOP.",
+        "Common-Misconceptions": [
+            "Objects and classes are the same thing",
+            "All objects must directly model real-world entities"
+        ],
+        "Question-Prompts": [
+            "What is the difference between a class and an object?",
+            "Give an example of an object and its state/behavior."
+        ],
+        "Related-Topics": [
+            "Class",
+            "Methods",
+            "Encapsulation"
+        ],
+        "References": [
+            "Fundamentals of OOP in C#, Java, Python tutorials"
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Foundations",
+        "Topic": "Programming Paradigms",
+        "Definition": "A programming paradigm is a style or way of programming that provides a distinct approach to solving problems.",
+        "Content": "Programming paradigms describe fundamental approaches to designing and structuring code. Common paradigms include imperative (step-by-step commands), functional (computation as evaluation of functions), and object-oriented (modeling real-world entities as objects).",
+        "Contrast-With": [],
+        "Examples": [
+            "Imperative",
+            "Functional",
+            "Object-Oriented"
+        ],
+        "Key-Concepts": [
+            "Paradigm",
+            "Imperative",
+            "Functional",
+            "Object-Oriented"
+        ],
+        "Level": "Beginner",
+        "Learning-Goal": "Students will be able to identify and describe different programming paradigms.",
+        "Common-Misconceptions": [
+            "One paradigm is always better than all others",
+            "All modern languages are purely object-oriented"
+        ],
+        "Question-Prompts": [
+            "Name three programming paradigms and briefly describe each.",
+            "Which paradigm focuses on functions as first-class citizens?"
+        ],
+        "Related-Topics": [
+            "Object-Oriented Programming",
+            "Imperative Programming",
+            "Functional Programming"
+        ],
+        "References": [
+            "Concepts of Programming Languages by Robert Sebesta"
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Foundations",
+        "Topic": "Object-Oriented Programming",
+        "Definition": "OOP is a programming paradigm where solutions are modeled as interacting objects with state and behavior.",
+        "Content": "In OOP, you design software by modeling real-world concepts as objects that contain data (state) and methods (behavior). Objects communicate via message passing. OOP emphasizes encapsulation, abstraction, inheritance, and polymorphism.",
+        "Contrast-With": [
+            "Imperative Programming",
+            "Functional Programming"
+        ],
+        "Examples": [
+            "Java",
+            "C#",
+            "C++",
+            "Python"
+        ],
+        "Key-Concepts": [
+            "Objects",
+            "Classes",
+            "Methods",
+            "Encapsulation",
+            "Polymorphism"
+        ],
+        "Level": "Beginner",
+        "Learning-Goal": "Students will be able to explain the core idea of OOP and identify its key principles.",
+        "Common-Misconceptions": [
+            "OOP is just about using classes",
+            "All problems are best solved with OOP"
+        ],
+        "Question-Prompts": [
+            "What are the four pillars of OOP?",
+            "How does OOP differ from imperative programming?"
+        ],
+        "Related-Topics": [
+            "Encapsulation",
+            "Abstraction",
+            "Inheritance",
+            "Polymorphism"
+        ],
+        "References": [
+            "Design Patterns: Elements of Reusable Object-Oriented Software by Gamma et al."
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Foundations",
+        "Topic": "Object-Oriented Design",
+        "Definition": "OOD is the process of planning and structuring software using object-oriented principles before coding.",
+        "Content": "OOD focuses on analyzing requirements and modeling systems using classes, objects, and their relationships. It emphasizes reusability, modularity, and maintainability. Tools like UML diagrams are often used in OOD.",
+        "Contrast-With": [
+            "Procedural Design",
+            "Ad-hoc Coding"
+        ],
+        "Examples": [
+            "UML Class Diagrams",
+            "Sequence Diagrams"
+        ],
+        "Key-Concepts": [
+            "Modeling",
+            "UML",
+            "Modularity",
+            "Design Principles"
+        ],
+        "Level": "Intermediate",
+        "Learning-Goal": "Students will be able to create basic object-oriented designs from problem descriptions.",
+        "Common-Misconceptions": [
+            "OOD is the same as OOP",
+            "OOD requires UML diagrams",
+            "OOD means just drawing classes"
+        ],
+        "Question-Prompts": [
+            "What is the difference between OOD and OOP?",
+            "Why is OOD important before writing code?"
+        ],
+        "Related-Topics": [
+            "Classes",
+            "Objects",
+            "UML Basics",
+            "Design Principles"
+        ],
+        "References": [
+            "Object-Oriented Analysis and Design with Applications by Grady Booch"
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Core OOP Building Blocks",
+        "Topic": "Class",
+        "Definition": "A class is a blueprint for creating objects, defining their state (fields/properties) and behavior (methods).",
+        "Content": "Classes encapsulate data and functions into a single unit. An object is an instance of a class. Classes enable abstraction, encapsulation, and code reuse. In many languages, they support inheritance and polymorphism.",
+        "Contrast-With": [
+            "Structs (in some languages)",
+            "Procedural Functions"
+        ],
+        "Examples": [
+            "Java Class with fields and methods",
+            "C# Class with properties"
+        ],
+        "Key-Concepts": [
+            "Fields",
+            "Properties",
+            "Methods",
+            "Instance"
+        ],
+        "Level": "Beginner",
+        "Learning-Goal": "Students will be able to define a class and create objects from it.",
+        "Common-Misconceptions": [
+            "A class is the same as an object",
+            "You can use methods without creating an object (unless static)"
+        ],
+        "Question-Prompts": [
+            "What is the relationship between a class and an object?",
+            "Give an example of a simple class in your preferred language."
+        ],
+        "Related-Topics": [
+            "Object",
+            "Fields",
+            "Properties",
+            "Methods"
+        ],
+        "References": [
+            "Official Java and C# documentation"
+        ]
+    },
+    {
+        "Main-Subject": "Object Oriented Design and Programming",
+        "Sub-Subject": "Core OOP Building Blocks",
+        "Topic": "Object",
+        "Definition": "An object is an instance of a class, representing a specific entity with its own state and behavior.",
+        "Content": "Objects are created from classes and contain actual values for fields and methods that can act on those values. Objects interact by sending messages (method calls).",
+        "Contrast-With": [
+            "Class (blueprint)",
+            "Procedural Variables"
+        ],
+        "Examples": [
+            "A Car object created from a Car class",
+            "A User object in a web application"
+        ],
+        "Key-Concepts": [
+            "Instance",
+            "State",
+            "Behavior",
+            "Message Passing"
+        ],
+        "Level": "Beginner",
+        "Learning-Goal": "Students will be able to instantiate objects from classes and explain the role of an object in OOP.",
+        "Common-Misconceptions": [
+            "Objects and classes are the same thing",
+            "All objects must directly model real-world entities"
+        ],
+        "Question-Prompts": [
+            "What is the difference between a class and an object?",
+            "Give an example of an object and its state/behavior."
+        ],
+        "Related-Topics": [
+            "Class",
+            "Methods",
+            "Encapsulation"
+        ],
+        "References": [
+            "Fundamentals of OOP in C#, Java, Python tutorials"
+        ]
+    }
+]
