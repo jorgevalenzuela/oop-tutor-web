@@ -1,36 +1,33 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Network, Settings } from 'lucide-react'
 
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/graph', label: 'Graph View', icon: Network },
-  { to: '/settings', label: 'Settings', icon: Settings },
+const tabs = [
+  { to: '/',        label: 'Tutor'           },
+  { to: '/graph',   label: 'Knowledge Graph' },
+  { to: '/settings', label: 'Settings'       },
 ]
 
 export default function Navigation() {
   return (
-    <nav className="border-b bg-gray-50">
-      <div className="container mx-auto px-4">
-        <ul className="flex gap-1">
-          {navItems.map(({ to, label, icon: Icon }) => (
-            <li key={to}>
-              <NavLink
-                to={to}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'border-b-2 border-primary text-primary bg-white'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`
-                }
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </div>
+    <nav
+      className="flex-shrink-0 flex border-b"
+      style={{ backgroundColor: '#2C2570', borderColor: 'rgba(255,255,255,0.08)' }}
+    >
+      {tabs.map(({ to, label }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={to === '/'}
+          className={({ isActive }) =>
+            `px-5 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+              isActive
+                ? 'text-white border-white'
+                : 'text-white/50 border-transparent hover:text-white/80 hover:border-white/30'
+            }`
+          }
+        >
+          {label}
+        </NavLink>
+      ))}
     </nav>
   )
 }

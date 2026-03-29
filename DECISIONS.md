@@ -11,3 +11,40 @@
 > periodically synced here as project milestones are reached.
 
 ---
+
+## Phase 1 — 3D Concept Map as Primary Interaction (2026-03-27)
+
+### D-001 · Three.js for 3D concept map
+**Decision:** Use Three.js (v0.183.2) with `WebGLRenderer` + `CSS2DRenderer`.
+**Why:** Three.js is the most mature, well-documented 3D library for the web. `CSS2DRenderer` keeps labels as DOM elements so they stay pixel-sharp at any zoom, avoiding the blurriness of canvas-drawn text.
+**Trade-off rejected:** react-three-fiber was considered but adds abstraction that makes cleanup and imperative Three.js patterns harder to audit.
+
+### D-002 · Hierarchy data parsed at build time, not from backend
+**Decision:** `src/data/oopHierarchy.ts` encodes the full OOP concept tree from `OOP-TUTOR-HIERARCHY-FOR-CODE.html` as a static TypeScript constant.
+**Why:** The map structure is curriculum-defined, not user-generated. No backend round-trip needed to render the map. Source of truth is the HTML file provided by the author.
+
+### D-003 · Single click = RAG query · Double click = expand/collapse
+**Decision:** Click detection uses a 280 ms timer: a second click within that window cancels the timer and triggers expand/collapse instead of a RAG query.
+**Why:** Standard double-click disambiguation pattern. Prevents accidental RAG queries when the intent is to expand a branch.
+
+### D-004 · Node colors match HTML spec exactly
+**Decision:** Root `#3C3489`, Category `#7F77DD`, Concept `#EEEDFE` (near-white, not pure white), Shared `#1D9E75`, Leaf `#D3D1C7`.
+**Why:** Concept nodes use `#EEEDFE` instead of pure `#ffffff` because a white sphere on a dark 3D background with lighting is near-invisible. The very light purple preserves the "white" visual intent while remaining readable.
+
+### D-005 · AppLayout is full-height, no container padding
+**Decision:** `AppLayout` uses `h-screen flex flex-col overflow:hidden`. No `container mx-auto` or padding on `<main>`. Each page manages its own spacing.
+**Why:** The 3D map must fill the full viewport height. Adding container padding in the layout would leave an unusable gap around the canvas. Non-map pages (Settings, GraphView) add their own padding.
+
+### D-006 · Loading state as overlay inside the 3D canvas
+**Decision:** A pill-shaped loading indicator appears inside the 3D map area (bottom-center) while the Ollama RAG query runs.
+**Why:** Local Ollama can take 5–15 seconds. The indicator must be visible while the map is still usable (user can keep exploring). Placing it inside the canvas keeps spatial context intact — the user knows which node triggered the request.
+
+### D-007 · Radial tree layout with fan-out expansion
+**Decision:** Root at center (y=4). Categories at equal angular intervals (360°/4) at radius 5.5. Children of any non-root node fan out in an arc of ≤85° facing away from the origin, at radius 4.2–2.0 (decreasing with depth).
+**Why:** Keeps related subtrees spatially close to their parent. Orbit controls let students explore from any angle, which compensates for any overlap at deep levels.
+
+### D-008 · Free-form text input moved to bottom bar
+**Decision:** The existing `QueryInput` is replaced with an inline minimal form at the bottom of the Dashboard (`height: 52px`). Label reads "Ask a free-form question".
+**Why:** Map click is now the primary interaction. The text input is secondary — visually smaller and tucked away, but always accessible.
+
+---
