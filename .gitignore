@@ -25,3 +25,12 @@ uvicorn.log
 # OS files
 .DS_Store
 Thumbs.db
+
+# Assessment service
+assessment/node_modules/
+assessment/dist/
+assessment/data/
+assessment/*.db
+assessment/*.db-wal
+assessment/*.db-shm
+assessment/.env
