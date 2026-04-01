@@ -113,6 +113,62 @@ export interface RejectQuestionBody {
   review_notes: string;
 }
 
+export type DifficultyRange = 'L1' | 'L1-2' | 'ALL' | 'L2-3' | 'L3';
+export type ExamStatus = 'IN_PROGRESS' | 'COMPLETED' | 'INCOMPLETE' | 'ABANDONED';
+
+export interface ExamInstance {
+  id: string;
+  student_id: string;
+  attempt_number: number;
+  difficulty_range: DifficultyRange;
+  status: ExamStatus;
+  started_at: string;
+  completed_at: string | null;
+  time_taken_seconds: number | null;
+  overall_score: number | null;
+  mastery_achieved: number;
+}
+
+export interface StudentAnswer {
+  id: string;
+  exam_id: string;
+  question_id: string;
+  answer_given: string;
+  ai_score: number | null;
+  ai_feedback: string | null;
+  is_correct: number | null;
+  time_on_question_seconds: number | null;
+  answered_at: string;
+}
+
+export interface ConceptMastery {
+  id: string;
+  student_id: string;
+  concept: string;
+  average_score: number;
+  consecutive_correct: number;
+  total_attempts: number;
+  mastery_achieved: number;
+  mastery_achieved_at: string | null;
+  last_attempted_at: string | null;
+}
+
+export interface GradingResult {
+  score: number;
+  feedback: string;
+  isCorrect: boolean;
+}
+
+export interface SubmitAnswerBody {
+  questionId: string;
+  answerGiven: string;
+  timeOnQuestionSeconds?: number;
+}
+
+export interface ExamSummary extends ExamInstance {
+  answers: (StudentAnswer & { question: Question })[];
+}
+
 // Express augmentation
 declare global {
   namespace Express {

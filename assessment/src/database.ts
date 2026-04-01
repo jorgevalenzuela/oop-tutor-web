@@ -82,6 +82,51 @@ function initializeSchema(): void {
     CREATE INDEX IF NOT EXISTS idx_questions_concept_difficulty ON questions(concept, difficulty);
     CREATE INDEX IF NOT EXISTS idx_questions_type ON questions(type);
     CREATE INDEX IF NOT EXISTS idx_approvals_status ON question_approvals(status);
+
+    CREATE TABLE IF NOT EXISTS exam_instances (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      attempt_number INTEGER NOT NULL,
+      difficulty_range TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'IN_PROGRESS',
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT,
+      time_taken_seconds INTEGER,
+      overall_score REAL,
+      mastery_achieved INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS student_answers (
+      id TEXT PRIMARY KEY,
+      exam_id TEXT NOT NULL REFERENCES exam_instances(id) ON DELETE CASCADE,
+      question_id TEXT NOT NULL REFERENCES questions(id) ON DELETE RESTRICT,
+      answer_given TEXT NOT NULL,
+      ai_score REAL,
+      ai_feedback TEXT,
+      is_correct INTEGER,
+      time_on_question_seconds INTEGER,
+      answered_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS concept_mastery (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      concept TEXT NOT NULL,
+      average_score REAL NOT NULL DEFAULT 0,
+      consecutive_correct INTEGER NOT NULL DEFAULT 0,
+      total_attempts INTEGER NOT NULL DEFAULT 0,
+      mastery_achieved INTEGER NOT NULL DEFAULT 0,
+      mastery_achieved_at TEXT,
+      last_attempted_at TEXT,
+      UNIQUE(student_id, concept)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_exam_student_attempt ON exam_instances(student_id, attempt_number);
+    CREATE INDEX IF NOT EXISTS idx_exam_student_status ON exam_instances(student_id, status);
+    CREATE INDEX IF NOT EXISTS idx_answers_exam ON student_answers(exam_id);
+    CREATE INDEX IF NOT EXISTS idx_answers_question ON student_answers(question_id);
+    CREATE INDEX IF NOT EXISTS idx_mastery_student_concept ON concept_mastery(student_id, concept);
+    CREATE INDEX IF NOT EXISTS idx_mastery_achieved ON concept_mastery(mastery_achieved);
   `);
 }
 

@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const tabs = [
   { to: '/',        label: 'Tutor'           },
+  { to: '/exam',    label: 'Exam'            },
   { to: '/graph',   label: 'Knowledge Graph' },
   { to: '/settings', label: 'Settings'       },
 ]

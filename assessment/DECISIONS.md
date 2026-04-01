@@ -125,3 +125,99 @@ An instructor must approve before questions go live (BR-004).
 | AI Suggested | AI Accepted | AI Notes |
 |---|---|---|
 | Yes | Yes | Approval gate enforces human-in-the-loop for AI content |
+---
+
+### DEC-004: Exam difficulty progresses by attempt number
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-004 |
+| **Date** | 2026-04-01 |
+| **Status** | Accepted |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+Each exam must select 10 questions. The difficulty should increase as
+the student gains experience, without requiring instructor configuration.
+
+**Decision:**
+Map attempt_number to a difficulty_range automatically:
+1→L1, 2→L1-2, 3-5→ALL, 6-8→L2-3, 9+→L3.
+Questions are randomly selected from APPROVED questions matching the range.
+
+**Alternatives Considered:**
+- Adaptive per-question difficulty — deferred, requires more signals
+- Instructor-configurable difficulty — deferred, adds UI complexity
+
+**Consequences:**
+- Simple and predictable for students — they know difficulty increases
+- Requires enough approved questions per difficulty level before exams work
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Simple progression preferred over adaptive complexity at this stage |
+
+---
+
+### DEC-005: Auth token stored in React state only
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-005 |
+| **Date** | 2026-04-01 |
+| **Status** | Accepted |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+Session tokens must be stored somewhere client-side after login.
+LocalStorage is the common choice but introduces XSS risk.
+
+**Decision:**
+Store the token exclusively in React state (AuthContext). It is never
+written to localStorage, sessionStorage, or cookies. On page refresh
+the user must re-authenticate via magic link.
+
+**Alternatives Considered:**
+- localStorage — rejected, XSS vulnerability; this is an academic tool
+  but the principle matters
+- HttpOnly cookie — deferred, requires backend cookie support and CORS
+  cookie configuration; adds complexity not justified at this scale
+
+**Consequences:**
+- Page refresh logs the user out — acceptable for a classroom exam tool
+- Simpler security model with no persistent token attack surface
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Classroom scale justifies UX tradeoff for cleaner security model |
+
+---
+
+### DEC-006: MC and CONCEPT_MATCHING graded locally, not by AI
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-006 |
+| **Date** | 2026-04-01 |
+| **Status** | Accepted |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+Grading every question type with the Claude API adds latency and cost.
+MC and concept matching have objectively correct answers.
+
+**Decision:**
+MC: exact string match against correct_answer.
+CONCEPT_MATCHING: positional JSON comparison of concept→definition pairs.
+FREE_FORM and CODE_WRITING use Claude API (claude-sonnet-4-20250514).
+
+**Consequences:**
+- Faster, cheaper grading for objective question types
+- MC grading is deterministic and free of model variance
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | No benefit to AI-grading deterministic question types |

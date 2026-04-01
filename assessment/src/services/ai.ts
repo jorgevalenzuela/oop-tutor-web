@@ -1,7 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { QuestionType } from '../types';
+import { QuestionType, Question, GradingResult } from '../types';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ─── Question Generation ────────────────────────────────────────────────────
 
 interface GeneratedQuestion {
   question_text: string;
@@ -86,4 +88,107 @@ Example output format:
   }
 
   return parsed;
+}
+
+// ─── Answer Grading ─────────────────────────────────────────────────────────
+
+function gradeMC(question: Question, answerGiven: string): GradingResult {
+  const isCorrect = answerGiven.trim() === question.correct_answer.trim();
+  return {
+    score: isCorrect ? 1.0 : 0.0,
+    feedback: isCorrect
+      ? 'Correct!'
+      : `Incorrect. The correct answer is: ${question.correct_answer}`,
+    isCorrect,
+  };
+}
+
+function gradeConceptMatching(question: Question, answerGiven: string): GradingResult {
+  // Expect answerGiven to be a JSON string of matches: [{ concept, definition }]
+  // correct_answer is also a JSON string of the same shape
+  try {
+    const studentMatches: Record<string, string>[] = JSON.parse(answerGiven);
+    const correctMatches: Record<string, string>[] = JSON.parse(question.correct_answer);
+
+    let correct = 0;
+    for (const cm of correctMatches) {
+      const sm = studentMatches.find((m) => m.concept === cm.concept);
+      if (sm && sm.definition === cm.definition) correct++;
+    }
+    const score = correctMatches.length > 0 ? correct / correctMatches.length : 0;
+    const isCorrect = score >= 1.0;
+    return {
+      score,
+      feedback: isCorrect
+        ? 'Perfect match!'
+        : `You matched ${correct} of ${correctMatches.length} correctly. Review the rubric: ${question.grading_rubric}`,
+      isCorrect,
+    };
+  } catch {
+    return { score: 0, feedback: 'Could not parse your answer. Please try again.', isCorrect: false };
+  }
+}
+
+async function gradeWithAI(question: Question, answerGiven: string): Promise<GradingResult> {
+  const placeholder = question.type === 'CODE_WRITING' ? '{{student_code}}' : '{{student_answer}}';
+  const gradingPrompt = question.ai_grading_prompt.replace(placeholder, answerGiven);
+
+  const systemPrompt = `You are a strict but fair OOP course grader. Evaluate the student's answer and return ONLY valid JSON with no markdown or explanation.
+
+Return exactly:
+{
+  "score": <float 0.0 to 1.0>,
+  "feedback": "<concise feedback for the student>",
+  "isCorrect": <true if score >= 0.8, false otherwise>
+}`;
+
+  const userPrompt = `Question: ${question.question_text}
+
+Correct answer / rubric:
+${question.correct_answer}
+
+Grading rubric:
+${question.grading_rubric}
+
+Student's answer:
+${answerGiven}
+
+${gradingPrompt}`;
+
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 512,
+    messages: [
+      { role: 'user', content: userPrompt },
+    ],
+    system: systemPrompt,
+  });
+
+  const content = message.content[0];
+  if (content.type !== 'text') {
+    throw new Error('Unexpected response type from Claude grader');
+  }
+
+  let result: { score: number; feedback: string; isCorrect: boolean };
+  try {
+    result = JSON.parse(content.text.trim());
+  } catch {
+    throw new Error('Claude grader returned invalid JSON: ' + content.text.slice(0, 200));
+  }
+
+  return {
+    score: Math.max(0, Math.min(1, result.score)),
+    feedback: result.feedback,
+    isCorrect: result.score >= 0.8,
+  };
+}
+
+export async function gradeAnswer(question: Question, answerGiven: string): Promise<GradingResult> {
+  if (question.type === 'MULTIPLE_CHOICE') {
+    return gradeMC(question, answerGiven);
+  }
+  if (question.type === 'CONCEPT_MATCHING') {
+    return gradeConceptMatching(question, answerGiven);
+  }
+  return gradeWithAI(question, answerGiven);
 }
