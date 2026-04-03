@@ -406,3 +406,43 @@ Leaf nodes are assessed via their parent concept's questions.
 | AI Suggested | AI Accepted | AI Notes |
 |---|---|---|
 | No | — | User decision: "The concept map IS the curriculum" |
+
+---
+
+### DEC-012: Instructor + TA Dashboard — separate route, role-gated navigation
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-012 |
+| **Date** | 2026-04-01 |
+| **Status** | Accepted |
+| **Iteration** | 5 — Instructor Dashboard |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+Instructors and TAs need visibility into class-wide progress: who
+has mastered what, which concepts are hardest, who holds a cert.
+Students should not see this data. TAs get read-only access (no
+CSV export, no cert revoke/issue).
+
+**Decision:**
+New `/api/instructor/*` routes gated by `requireRole('INSTRUCTOR',
+'TA', 'ADMIN')`. Frontend `/instructor` route renders `InstructorDashboard`.
+Navigation is fully role-gated: Progress tab for STUDENT only;
+Dashboard tab for INSTRUCTOR/TA/ADMIN; Settings tab for
+INSTRUCTOR/ADMIN only.
+
+**Alternatives Considered:**
+- Inline instructor widgets in existing pages — rejected, clutters
+  student UX and complicates role checks throughout
+- Separate app/port — rejected, unnecessary complexity for a course tool
+
+**Consequences:**
+- Clean separation between student and instructor views
+- TA role has a clear, limited scope (read analytics + student detail)
+- CSV export is instructor-only; TAs cannot export student data
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Matches spec |

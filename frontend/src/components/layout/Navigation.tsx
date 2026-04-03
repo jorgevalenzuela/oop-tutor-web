@@ -1,13 +1,22 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Navigation() {
+  const { user } = useAuth()
+  const role = user?.role
+
+  const isInstructorOrTA = role === 'INSTRUCTOR' || role === 'TA' || role === 'ADMIN'
+  const isStudent = role === 'STUDENT'
+  const isInstructorOrAdmin = role === 'INSTRUCTOR' || role === 'ADMIN'
+
   const tabs = [
-    { to: '/',          label: 'Tutor'           },
-    { to: '/exam',      label: 'Exam'            },
-    { to: '/progress',  label: 'Progress'        },
-    { to: '/graph',     label: 'Knowledge Graph' },
-    { to: '/settings',  label: 'Settings'        },
-  ]
+    { to: '/',            label: 'Tutor',              show: true },
+    { to: '/exam',        label: 'Exam',               show: true },
+    { to: '/progress',    label: 'Progress',           show: isStudent },
+    { to: '/instructor',  label: 'Dashboard',          show: isInstructorOrTA },
+    { to: '/graph',       label: 'Knowledge Graph',    show: true },
+    { to: '/settings',    label: 'Settings',           show: isInstructorOrAdmin },
+  ].filter(t => t.show)
 
   return (
     <nav

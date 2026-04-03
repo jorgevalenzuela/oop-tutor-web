@@ -238,6 +238,44 @@ export interface CertEligibility {
   remainingConcepts: string[];
 }
 
+// ─── Instructor types ─────────────────────────────────────────────────────────
+
+export interface StudentRow {
+  id: string;
+  email: string;
+  display_name: string | null;
+  mastery_pct: number;
+  exam_count: number;
+  last_exam_at: string | null;
+  cert_status: 'none' | 'issued' | 'revoked';
+}
+
+export interface StudentDetail {
+  id: string;
+  email: string;
+  display_name: string | null;
+  mastery: ConceptMastery[];
+  exams: ExamInstance[];
+  cert_status: 'none' | 'issued' | 'revoked';
+  certificate: CertificateWithScores | null;
+}
+
+export interface ConceptStat {
+  concept: string;
+  avg_score: number;
+  attempt_count: number;
+}
+
+export interface AnalyticsReport {
+  total_students: number;
+  students_with_cert: number;
+  avg_mastery_pct: number;
+  hardest_concepts: ConceptStat[];
+  easiest_concepts: ConceptStat[];
+  total_exams: number;
+  avg_exam_score: number | null;
+}
+
 // Express augmentation
 declare global {
   namespace Express {

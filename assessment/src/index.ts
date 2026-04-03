@@ -6,6 +6,7 @@ import questionsRouter from './routes/questions';
 import examRouter from './routes/exam';
 import masteryConfigRouter from './routes/mastery-config';
 import certificateRouter from './routes/certificate';
+import instructorRouter from './routes/instructor';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -23,6 +24,7 @@ app.use('/api/questions', questionsRouter);
 app.use('/api/exam', examRouter);
 app.use('/api/mastery-config', masteryConfigRouter);
 app.use('/api/certificates', certificateRouter);
+app.use('/api/instructor', instructorRouter);
 
 app.use(errorHandler);
 

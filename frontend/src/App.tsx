@@ -6,6 +6,7 @@ import GraphView from './pages/GraphView'
 import Settings from './pages/Settings'
 import ExamPage from './pages/ExamPage'
 import ProgressPage from './pages/ProgressPage'
+import InstructorDashboard from './pages/InstructorDashboard'
 import LoginPage from './pages/LoginPage'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
         <Routes>
           <Route path="/exam" element={<ExamPage />} />
           <Route path="/progress" element={<ProgressPage />} />
+          <Route path="/instructor" element={<InstructorDashboard />} />
           <Route path="/graph" element={<GraphView />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

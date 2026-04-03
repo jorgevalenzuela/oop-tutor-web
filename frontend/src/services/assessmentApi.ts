@@ -169,6 +169,42 @@ export interface CertEligibility {
   remainingConcepts: string[]
 }
 
+export interface StudentRow {
+  id: string
+  email: string
+  display_name: string | null
+  mastery_pct: number
+  exam_count: number
+  last_exam_at: string | null
+  cert_status: 'none' | 'issued' | 'revoked'
+}
+
+export interface StudentDetail {
+  id: string
+  email: string
+  display_name: string | null
+  mastery: ConceptMastery[]
+  exams: ExamInstance[]
+  cert_status: 'none' | 'issued' | 'revoked'
+  certificate: Certificate | null
+}
+
+export interface ConceptStat {
+  concept: string
+  avg_score: number
+  attempt_count: number
+}
+
+export interface AnalyticsReport {
+  total_students: number
+  students_with_cert: number
+  avg_mastery_pct: number
+  hardest_concepts: ConceptStat[]
+  easiest_concepts: ConceptStat[]
+  total_exams: number
+  avg_exam_score: number | null
+}
+
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 export const assessmentApi = {
@@ -266,5 +302,23 @@ export const assessmentApi = {
   },
   async verifyCertificate(code: string): Promise<Certificate> {
     return get(`/api/certificates/verify/${encodeURIComponent(code)}`)
+  },
+
+  // Instructor
+  async listStudents(sort?: string, filter?: string): Promise<StudentRow[]> {
+    const params = new URLSearchParams()
+    if (sort) params.set('sort', sort)
+    if (filter) params.set('filter', filter)
+    const qs = params.toString()
+    return get(`/api/instructor/students${qs ? `?${qs}` : ''}`)
+  },
+  async getStudentDetail(studentId: string): Promise<StudentDetail> {
+    return get(`/api/instructor/students/${encodeURIComponent(studentId)}`)
+  },
+  async getAnalytics(): Promise<AnalyticsReport> {
+    return get('/api/instructor/analytics')
+  },
+  exportCsvUrl(): string {
+    return `${BASE_URL}/api/instructor/export`
   },
 }
