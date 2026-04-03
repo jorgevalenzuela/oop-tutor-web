@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { assessmentApi, ProgressReport, ConceptMastery } from '../services/assessmentApi'
+import { assessmentApi, ProgressReport, ConceptMastery, Certificate, CertEligibility } from '../services/assessmentApi'
 import { OOP_HIERARCHY, HierarchyNode } from '../data/oopHierarchy'
 
 function formatTime(seconds: number): string {
@@ -149,6 +149,174 @@ function TreeNode({ node, depth, masteryMap, defaultExpanded }: TreeNodeProps) {
   )
 }
 
+// ─── Certificate section ──────────────────────────────────────────────────────
+
+function CertificateSection() {
+  const [cert, setCert] = useState<Certificate | null | undefined>(undefined)
+  const [eligibility, setEligibility] = useState<CertEligibility | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    Promise.all([
+      assessmentApi.getMyCertificate(),
+      assessmentApi.getCertEligibility(),
+    ]).then(([c, e]) => {
+      setCert(c)
+      setEligibility(e)
+    }).catch(() => setCert(null))
+  }, [])
+
+  async function handleGenerate() {
+    setGenerating(true)
+    setError('')
+    try {
+      const newCert = await assessmentApi.generateCertificate()
+      setCert(newCert)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate certificate')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleDownload() {
+    setDownloading(true)
+    try {
+      await assessmentApi.downloadCertificate()
+    } catch {
+      setError('Download failed')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  if (cert === undefined || !eligibility) {
+    return <p className="text-sm" style={{ color: '#6b5fa8' }}>Loading certificate status…</p>
+  }
+
+  const verifyUrl = cert
+    ? `http://localhost:3002/api/certificates/verify/${cert.verification_code}`
+    : null
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium mb-3" style={{ color: '#6b5fa8' }}>Certificate</h3>
+
+      {/* Already has a certificate */}
+      {cert && !cert.is_revoked && (
+        <div className="rounded-xl p-5 space-y-4"
+          style={{ backgroundColor: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.25)' }}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-base" style={{ color: '#15803d' }}>
+                🎓 Certificate of Completion
+              </p>
+              <p className="text-sm mt-0.5" style={{ color: '#6b5fa8' }}>
+                {cert.course_name} · Issued {new Date(cert.issued_at.replace(' ', 'T') + 'Z').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+              <p className="text-xs mt-1 font-medium" style={{ color: '#1e1635' }}>{cert.student_name}</p>
+            </div>
+          </div>
+
+          <div className="rounded-lg px-3 py-2 text-xs font-mono break-all"
+            style={{ backgroundColor: 'rgba(60,52,137,0.06)', color: '#3C3489', border: '1px solid rgba(60,52,137,0.15)' }}>
+            {cert.verification_code}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-60"
+              style={{ backgroundColor: '#3C3489' }}
+            >
+              {downloading ? 'Downloading…' : 'Download PDF'}
+            </button>
+            <button
+              onClick={() => navigator.clipboard.writeText(verifyUrl!)}
+              className="px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ backgroundColor: 'rgba(60,52,137,0.08)', color: '#3C3489', border: '1px solid rgba(60,52,137,0.2)' }}
+            >
+              Copy Verify Link
+            </button>
+          </div>
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+      )}
+
+      {/* Revoked */}
+      {cert && cert.is_revoked === 1 && (
+        <div className="rounded-xl p-4"
+          style={{ backgroundColor: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)' }}>
+          <p className="text-sm font-medium" style={{ color: '#b91c1c' }}>Certificate revoked</p>
+          <p className="text-xs mt-1" style={{ color: '#6b5fa8' }}>Contact your instructor for details.</p>
+        </div>
+      )}
+
+      {/* Not yet certified */}
+      {!cert && (
+        <div className="rounded-xl p-5 space-y-4"
+          style={{ border: '1px solid rgba(60,52,137,0.15)', backgroundColor: 'rgba(60,52,137,0.03)' }}>
+
+          {eligibility.eligible ? (
+            <div className="rounded-lg p-4"
+              style={{ backgroundColor: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)' }}>
+              <p className="font-semibold" style={{ color: '#15803d' }}>Congratulations! 🎉</p>
+              <p className="text-sm mt-1" style={{ color: '#6b5fa8' }}>
+                You have mastered all {eligibility.conceptsRequired} required concepts. Generate your certificate below.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium" style={{ color: '#1e1635' }}>
+                  {eligibility.conceptsMastered} / {eligibility.conceptsRequired} concepts mastered
+                </span>
+                <span className="text-xs" style={{ color: '#6b5fa8' }}>
+                  {eligibility.conceptsRequired - eligibility.conceptsMastered} remaining
+                </span>
+              </div>
+              <div className="h-2 rounded-full mb-4" style={{ backgroundColor: 'rgba(60,52,137,0.12)' }}>
+                <div className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.round(eligibility.conceptsMastered / eligibility.conceptsRequired * 100)}%`, backgroundColor: '#3C3489' }} />
+              </div>
+              {eligibility.remainingConcepts.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium mb-2" style={{ color: '#b91c1c' }}>Still need mastery in:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {eligibility.remainingConcepts.map(c => (
+                      <span key={c} className="px-2 py-0.5 rounded-full text-xs"
+                        style={{ backgroundColor: 'rgba(220,38,38,0.08)', color: '#b91c1c', border: '1px solid rgba(220,38,38,0.2)' }}>
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div title={eligibility.eligible ? undefined : 'Complete mastery of all required concepts to unlock'}>
+            <button
+              onClick={handleGenerate}
+              disabled={!eligibility.eligible || generating}
+              className="w-full py-3 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-opacity"
+              style={{ backgroundColor: '#16a34a' }}
+            >
+              {generating ? 'Generating…' : 'Generate Certificate'}
+            </button>
+          </div>
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProgressPage() {
@@ -272,6 +440,10 @@ export default function ProgressPage() {
             <p className="text-sm">Take your first exam to start tracking progress.</p>
           </div>
         )}
+
+        {/* ── Section 3: Certificate ────────────────────────────────────── */}
+        <CertificateSection />
+
       </div>
     </div>
   )

@@ -139,6 +139,31 @@ function initializeSchema(): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_mastery_configs_concept ON mastery_configs(concept);
+
+    CREATE TABLE IF NOT EXISTS certificates (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      issued_at TEXT NOT NULL DEFAULT (datetime('now')),
+      issued_by TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      course_name TEXT NOT NULL DEFAULT 'Object-Oriented Programming',
+      total_time_taken_seconds INTEGER,
+      pdf_path TEXT,
+      is_revoked INTEGER NOT NULL DEFAULT 0,
+      verification_code TEXT UNIQUE NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS concept_scores (
+      id TEXT PRIMARY KEY,
+      certificate_id TEXT NOT NULL REFERENCES certificates(id) ON DELETE CASCADE,
+      concept TEXT NOT NULL,
+      score REAL NOT NULL,
+      mastery_achieved INTEGER NOT NULL,
+      struggled INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_certificates_student ON certificates(student_id);
+    CREATE INDEX IF NOT EXISTS idx_certificates_verification ON certificates(verification_code);
+    CREATE INDEX IF NOT EXISTS idx_concept_scores_cert ON concept_scores(certificate_id);
   `);
 
   // Add continued_after_mastery column if it doesn't exist (safe migration)

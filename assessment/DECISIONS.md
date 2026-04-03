@@ -293,3 +293,116 @@ with two options: "View Results" (early complete) or "Continue Anyway"
 | AI Suggested | AI Accepted | AI Notes |
 |---|---|---|
 | Yes | Yes | Returning flag in answer response avoids extra round-trip |
+
+---
+
+### DEC-009: PDFKit over Puppeteer for certificate generation
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-009 |
+| **Date** | 2026-04-03 |
+| **Status** | Accepted |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+Certificate PDF generation requires a library that can produce
+well-styled output. Two main options: PDFKit (programmatic vector PDF)
+or Puppeteer (headless Chrome, renders HTML/CSS to PDF).
+
+**Decision:**
+Use PDFKit. The certificate layout is a fixed design (header band,
+name, concept table, footer) with no dynamic CSS requirements.
+PDFKit is ~4 MB vs Puppeteer's 300+ MB Chromium binary and requires
+no browser process management.
+
+**Alternatives Considered:**
+- Puppeteer — rejected, massive dependency, requires Chromium binary,
+  adds operational complexity not justified for a fixed-layout document
+
+**Consequences:**
+- PDF layout is coded in JavaScript coordinates rather than HTML/CSS
+- No CSS rendering capability — but not needed for this use case
+- Deployment is simple; no browser process to manage
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Fixed layout makes Puppeteer overhead unjustifiable |
+
+---
+
+### DEC-010: One non-revoked certificate per student (BR-010)
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-010 |
+| **Date** | 2026-04-03 |
+| **Status** | Accepted |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+Students may re-earn a certificate (e.g., after a revocation or to
+get an updated PDF with improved scores). A policy was needed on
+whether to allow multiple active certificates.
+
+**Decision:**
+A student may only have one non-revoked certificate at a time.
+Re-generating revokes the prior cert and deletes its PDF file on disk
+before issuing the new one. The `certificates` table enforces this
+at the service layer (not a DB UNIQUE constraint) so instructors can
+issue replacements cleanly.
+
+**Alternatives Considered:**
+- Allow multiple active certs — rejected, creates confusion for verifiers
+- UNIQUE(student_id) DB constraint — rejected, too rigid; instructor
+  override (bypass mastery check) would fail without extra logic
+
+**Consequences:**
+- Old PDF URLs are invalidated when a cert is regenerated
+- Verifiers always see the most recent certificate for a student
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Single active cert keeps verification simple for third parties |
+
+---
+
+### DEC-011: Concept-level assessment — 1:1 with map nodes
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-011 |
+| **Date** | 2026-04-03 |
+| **Status** | Accepted |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+The original question bank tracked 12 high-level concepts. The 3D
+concept map has ~28 concept/category nodes. Mastery bars in the
+Progress tab were misleading because a student could show 100% on
+"Encapsulation" while sub-nodes like "Data Hiding" showed no color.
+
+**Decision:**
+The concept map IS the curriculum. Every concept/category node in
+`oopHierarchy.ts` is an assessment target. `getAssessableNodes()`
+is the single source of truth for the concept list, used by the
+map's mastery coloring, MasteryConfigPanel, and the seed script.
+Leaf nodes are assessed via their parent concept's questions.
+
+**Alternatives Considered:**
+- Keep 12 high-level concepts — rejected, misaligns assessment with
+  the curriculum as visualized; misleading mastery percentages
+- Assess leaf nodes individually — rejected, too granular; leaf nodes
+  like "Return Type" don't warrant standalone exam questions
+
+**Consequences:**
+- Question bank requires 3× more coverage (28 vs 12 concepts)
+- Mastery coloring in the 3D map is now accurate and complete
+- Certificate concept_scores table reflects all 28 assessed concepts
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| No | — | User decision: "The concept map IS the curriculum" |

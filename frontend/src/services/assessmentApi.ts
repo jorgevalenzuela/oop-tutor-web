@@ -139,6 +139,36 @@ export interface MasteryConfig {
   is_default?: boolean
 }
 
+export interface ConceptScore {
+  id: string
+  certificate_id: string
+  concept: string
+  score: number
+  mastery_achieved: number
+  struggled: number
+}
+
+export interface Certificate {
+  id: string
+  student_id: string
+  issued_at: string
+  issued_by: string
+  course_name: string
+  total_time_taken_seconds: number | null
+  pdf_path: string | null
+  is_revoked: number
+  verification_code: string
+  concept_scores: ConceptScore[]
+  student_name: string
+}
+
+export interface CertEligibility {
+  eligible: boolean
+  conceptsMastered: number
+  conceptsRequired: number
+  remainingConcepts: string[]
+}
+
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 export const assessmentApi = {
@@ -210,5 +240,31 @@ export const assessmentApi = {
   },
   async resetMasteryConfig(concept: string): Promise<void> {
     await del(`/api/mastery-config/${encodeURIComponent(concept)}`)
+  },
+
+  // Certificates
+  async getCertEligibility(): Promise<CertEligibility> {
+    return get('/api/certificates/eligibility')
+  },
+  async getMyCertificate(): Promise<Certificate | null> {
+    return get('/api/certificates/mine')
+  },
+  async generateCertificate(): Promise<Certificate> {
+    return post('/api/certificates/generate')
+  },
+  async downloadCertificate(): Promise<void> {
+    const res = await axios.get(`${BASE_URL}/api/certificates/mine/download`, {
+      headers: headers(),
+      responseType: 'blob',
+    })
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'oop-certificate.pdf'
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+  async verifyCertificate(code: string): Promise<Certificate> {
+    return get(`/api/certificates/verify/${encodeURIComponent(code)}`)
   },
 }

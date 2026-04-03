@@ -205,6 +205,39 @@ export interface ExamSummary extends ExamInstance {
   answers: (StudentAnswer & { question: Question })[];
 }
 
+export interface Certificate {
+  id: string;
+  student_id: string;
+  issued_at: string;
+  issued_by: string;
+  course_name: string;
+  total_time_taken_seconds: number | null;
+  pdf_path: string | null;
+  is_revoked: number;
+  verification_code: string;
+}
+
+export interface ConceptScore {
+  id: string;
+  certificate_id: string;
+  concept: string;
+  score: number;
+  mastery_achieved: number;
+  struggled: number;
+}
+
+export interface CertificateWithScores extends Certificate {
+  concept_scores: ConceptScore[];
+  student_name: string;
+}
+
+export interface CertEligibility {
+  eligible: boolean;
+  conceptsMastered: number;
+  conceptsRequired: number;
+  remainingConcepts: string[];
+}
+
 // Express augmentation
 declare global {
   namespace Express {

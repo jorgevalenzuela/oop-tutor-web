@@ -34,7 +34,7 @@ export default function Dashboard() {
       {/* ── 3D Concept Map (hero) ──────────────────────────────────── */}
       <div
         className="relative flex-shrink-0"
-        style={{ height: hasPanes ? '50vh' : 'calc(100% - 52px)', background: '#0C0B22', minHeight: 320 }}
+        style={{ height: hasPanes ? '50vh' : 'calc(100% - 88px)', background: '#0C0B22', minHeight: 280 }}
       >
         <ConceptMap3D onNodeSelect={handleNodeSelect} />
 
@@ -77,36 +77,47 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Free-form question bar (bottom, less prominent) ───────────────── */}
+      {/* ── Free-form question bar (bottom) ──────────────────────────────── */}
       <form
         onSubmit={handleFreeFormSubmit}
-        className="flex-shrink-0 flex items-center gap-2 border-t bg-white px-4"
-        style={{ height: 52 }}
+        className="flex-shrink-0 flex flex-col justify-center gap-2 px-5 py-4"
+        style={{
+          height: 88,
+          backgroundColor: '#EEEDFE',
+          borderTop: '1px solid #AFA9EC',
+        }}
       >
-        <span className="text-xs text-gray-600 whitespace-nowrap">Ask a free-form question</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={freeFormText}
-          onChange={(e) => setFreeFormText(e.target.value)}
-          placeholder="e.g. What is polymorphism?"
-          disabled={isLoading}
-          className="flex-1 text-sm px-3 py-1.5 border border-gray-200 rounded
-                     focus:outline-none focus:ring-1 focus:ring-purple-400
-                     disabled:opacity-50 bg-gray-50"
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !freeFormText.trim()}
-          className="p-1.5 text-purple-600 hover:text-purple-800 disabled:opacity-30
-                     transition-colors"
-          title="Submit"
-        >
-          {isLoading
-            ? <Loader2 className="h-4 w-4 animate-spin" />
-            : <Send className="h-4 w-4" />
-          }
-        </button>
+        <span className="text-sm font-medium" style={{ color: '#6b5fa8', fontSize: '1.1rem' }}>Ask a free-form question</span>
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={freeFormText}
+            onChange={(e) => setFreeFormText(e.target.value)}
+            placeholder="e.g. What is polymorphism?"
+            disabled={isLoading}
+            className="flex-1 text-sm px-3 py-2 rounded-lg outline-none transition-all disabled:opacity-50"
+            style={{
+              backgroundColor: 'white',
+              border: '1px solid #AFA9EC',
+              color: '#1e1635',
+            }}
+            onFocus={e => e.currentTarget.style.boxShadow = '0 0 0 2px rgba(124,58,237,0.2)'}
+            onBlur={e => e.currentTarget.style.boxShadow = 'none'}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !freeFormText.trim()}
+            className="p-2 rounded-lg transition-colors disabled:opacity-30"
+            style={{ color: '#3C3489' }}
+            title="Submit"
+          >
+            {isLoading
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Send className="h-4 w-4" />
+            }
+          </button>
+        </div>
       </form>
     </div>
   )
