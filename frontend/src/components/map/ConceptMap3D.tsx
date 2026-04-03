@@ -3,7 +3,41 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import { Moon, Sun, HelpCircle, X } from 'lucide-react'
-import { OOP_HIERARCHY, HierarchyNode, NodeType } from '@/data/oopHierarchy'
+import { OOP_HIERARCHY, HierarchyNode, NodeType, getAssessableNodes } from '@/data/oopHierarchy'
+import { useAuth } from '../../contexts/AuthContext'
+
+// ─── Mastery concept → hierarchy node ID mapping ─────────────────────────────
+
+function collectIds(node: HierarchyNode, ids: Set<string>) {
+  ids.add(node.id)
+  for (const child of node.children) collectIds(child, ids)
+}
+
+function findById(node: HierarchyNode, id: string): HierarchyNode | null {
+  if (node.id === id) return node
+  for (const child of node.children) {
+    const found = findById(child, id)
+    if (found) return found
+  }
+  return null
+}
+
+// 1:1 mapping: each assessable node's label → its own node ID + all descendants.
+// Mastery on a concept colors the whole subtree beneath it.
+const MASTERY_CONCEPT_NODE_IDS = new Map<string, Set<string>>()
+for (const { id, label } of getAssessableNodes()) {
+  const node = findById(OOP_HIERARCHY, id)
+  if (node) {
+    const ids = new Set<string>()
+    collectIds(node, ids)
+    MASTERY_CONCEPT_NODE_IDS.set(label, ids)
+  }
+}
+
+// Mastery overlay colors (hex numbers for Three.js)
+const MASTERY_COLOR = 0x1D9E75   // mastered — green
+const CLOSE_COLOR   = 0xBA7517   // in progress — amber
+const NEEDS_COLOR   = 0xD85A30   // needs work — coral
 
 // ─── Visual constants ────────────────────────────────────────────────────────
 
@@ -257,12 +291,16 @@ export default function ConceptMap3D({ onNodeSelect }: Props) {
   const onSelectRef     = useRef(onNodeSelect)
   onSelectRef.current   = onNodeSelect
 
-  const [isDark,      setIsDark]      = useState(true)
-  const [fontOffset,  setFontOffset]  = useState(0)
-  const [showLegend,  setShowLegend]  = useState(false)
+  const { masteryData } = useAuth()
+  const [isDark,       setIsDark]       = useState(true)
+  const [fontOffset,   setFontOffset]   = useState(0)
+  const [showLegend,   setShowLegend]   = useState(false)
+  const [showMastery,  setShowMastery]  = useState(false)
 
-  const isDarkRef     = useRef(isDark)
-  const fontOffsetRef = useRef(fontOffset)
+  const isDarkRef            = useRef(isDark)
+  const fontOffsetRef        = useRef(fontOffset)
+  // Called from addNode so newly expanded nodes get mastery colors immediately
+  const applyMasteryColorRef = useRef<((node: LiveNode) => void) | null>(null)
 
   // ── Three.js setup (runs once) ────────────────────────────────────────────
   useEffect(() => {
@@ -315,6 +353,7 @@ export default function ConceptMap3D({ onNodeSelect }: Props) {
       if (parentLive) { edge = makeEdge(parentLive.position, position); scene.add(edge) }
       const live: LiveNode = { data, mesh, labelDiv, labelObj, edge, position, parentLive, depth, angle, expanded: false, liveChildren: [] }
       meshToNode.set(mesh, live)
+      applyMasteryColorRef.current?.(live)
       return live
     }
 
@@ -462,6 +501,43 @@ export default function ConceptMap3D({ onNodeSelect }: Props) {
     })
   }, [fontOffset])
 
+  // ── Mastery: apply / remove color overlay on nodes ────────────────────────
+  useEffect(() => {
+    const ctx = ctxRef.current
+    if (!ctx) return
+
+    // Build nodeId → mastery record lookup for this render
+    const nodeIdToRecord = new Map<string, (typeof masteryData)[0]>()
+    if (showMastery && masteryData.length > 0) {
+      for (const record of masteryData) {
+        const ids = MASTERY_CONCEPT_NODE_IDS.get(record.concept)
+        if (ids) ids.forEach(id => nodeIdToRecord.set(id, record))
+      }
+    }
+
+    function applyToNode(node: LiveNode) {
+      const mat = node.mesh.material as THREE.MeshPhongMaterial
+      if (!showMastery || masteryData.length === 0) {
+        mat.color.setHex(NODE_COLOR[node.data.type])
+        return
+      }
+      const record = nodeIdToRecord.get(node.data.id)
+      if (!record) return
+      if (record.mastery_achieved === 1) {
+        mat.color.setHex(MASTERY_COLOR)
+      } else if (record.average_score >= 0.5) {
+        mat.color.setHex(CLOSE_COLOR)
+      } else {
+        mat.color.setHex(NEEDS_COLOR)
+      }
+    }
+
+    // Keep ref current so newly expanded nodes get colored immediately
+    applyMasteryColorRef.current = applyToNode
+
+    ctx.meshToNode.forEach(applyToNode)
+  }, [showMastery, masteryData])
+
   // ── Shared styles for floating controls ──────────────────────────────────
   const btnBase: React.CSSProperties = {
     background:  isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
@@ -536,6 +612,30 @@ export default function ConceptMap3D({ onNodeSelect }: Props) {
           <p className="text-[10px] mt-3 opacity-40 leading-snug">
             Larger node = higher in the hierarchy
           </p>
+
+          {showMastery && (
+            <>
+              <div className="my-3" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(60,52,137,0.15)'}` }} />
+              <p className="text-[10px] font-semibold uppercase tracking-widest mb-2.5 opacity-50">
+                Mastery colors
+              </p>
+              <div className="space-y-2">
+                {[
+                  { color: '#1D9E75', label: 'Mastered',    desc: 'Score ≥ 80% + streak met' },
+                  { color: '#BA7517', label: 'In Progress', desc: 'Score ≥ 50%, not yet mastered' },
+                  { color: '#D85A30', label: 'Needs Work',  desc: 'Score < 50%' },
+                ].map(({ color, label, desc }) => (
+                  <div key={label} className="flex items-start gap-2 text-xs">
+                    <span className="flex-shrink-0 mt-0.5 w-3 h-3 rounded-full" style={{ background: color }} />
+                    <div className="leading-snug">
+                      <span className="font-semibold">{label}</span>
+                      <span className="opacity-60"> — {desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -578,6 +678,18 @@ export default function ConceptMap3D({ onNodeSelect }: Props) {
           style={btnBase}
         >
           A<span className="text-[11px] leading-none">+</span>
+        </button>
+
+        {/* Mastery toggle */}
+        <button
+          onClick={() => setShowMastery((v) => !v)}
+          title={showMastery ? 'Hide mastery colors' : 'Show mastery colors'}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors"
+          style={showMastery
+            ? { background: 'rgba(29,158,117,0.25)', border: '1px solid rgba(29,158,117,0.5)', color: isDark ? '#6ee7b7' : '#065f46' }
+            : btnBase}
+        >
+          ★ Mastery
         </button>
 
         {/* Dark / light mode */}

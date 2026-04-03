@@ -4,6 +4,7 @@ import cors from 'cors';
 import authRouter from './routes/auth';
 import questionsRouter from './routes/questions';
 import examRouter from './routes/exam';
+import masteryConfigRouter from './routes/mastery-config';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -19,6 +20,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/questions', questionsRouter);
 app.use('/api/exam', examRouter);
+app.use('/api/mastery-config', masteryConfigRouter);
 
 app.use(errorHandler);
 

@@ -312,3 +312,20 @@ export const OOP_HIERARCHY: HierarchyNode = {
     },
   ],
 }
+
+/**
+ * Returns every concept-type and category-type node in the hierarchy
+ * (root and leaf nodes excluded). These are the 1:1 assessment targets —
+ * each maps to its own mastery record and set of exam questions.
+ */
+export function getAssessableNodes(): Array<{ id: string; label: string }> {
+  const result: Array<{ id: string; label: string }> = []
+  function walk(node: HierarchyNode) {
+    if (node.type === 'concept' || node.type === 'category') {
+      result.push({ id: node.id, label: node.label })
+    }
+    for (const child of node.children) walk(child)
+  }
+  for (const child of OOP_HIERARCHY.children) walk(child)
+  return result
+}

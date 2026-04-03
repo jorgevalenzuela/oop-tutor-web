@@ -1,6 +1,7 @@
 /**
  * seed-questions.ts
- * Generates and auto-approves questions via the Claude API.
+ * Generates 3 D1 questions per assessable concept/category node from the OOP
+ * hierarchy — the 1:1 curriculum source of truth.
  * Run: npx ts-node scripts/seed-questions.ts
  */
 
@@ -26,51 +27,65 @@ interface GeneratedQuestion {
   ai_grading_prompt: string;
 }
 
-// 10 core OOP concepts × 3 difficulty levels = 30 questions
-// Mix of types per concept
-const SEED_PLAN: { concept: string; difficulty: 1 | 2 | 3; type: QuestionType }[] = [
-  // Difficulty 1 — 10 questions (needed for first exam)
-  { concept: 'Classes and Objects',      difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Encapsulation',            difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Inheritance',              difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Polymorphism',             difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Abstraction',              difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Interfaces',               difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Constructors',             difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Access Modifiers',         difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Method Overriding',        difficulty: 1, type: 'MULTIPLE_CHOICE' },
-  { concept: 'Static vs Instance',       difficulty: 1, type: 'MULTIPLE_CHOICE' },
+// ─── Assessable nodes — mirrors getAssessableNodes() from oopHierarchy.ts ────
+// Every concept/category node in the hierarchy; leaf nodes are excluded.
+// Questions here cover child leaf content too (e.g. Constructors questions
+// cover Default Constructor and Parametrized Constructor leaf topics).
 
-  // Difficulty 2 — 10 questions
-  { concept: 'Classes and Objects',      difficulty: 2, type: 'FREE_FORM' },
-  { concept: 'Encapsulation',            difficulty: 2, type: 'FREE_FORM' },
-  { concept: 'Inheritance',              difficulty: 2, type: 'FREE_FORM' },
-  { concept: 'Polymorphism',             difficulty: 2, type: 'FREE_FORM' },
-  { concept: 'Abstraction',              difficulty: 2, type: 'FREE_FORM' },
-  { concept: 'Interfaces',               difficulty: 2, type: 'CODE_WRITING' },
-  { concept: 'Constructors',             difficulty: 2, type: 'CODE_WRITING' },
-  { concept: 'Access Modifiers',         difficulty: 2, type: 'FREE_FORM' },
-  { concept: 'Method Overriding',        difficulty: 2, type: 'CODE_WRITING' },
-  { concept: 'Static vs Instance',       difficulty: 2, type: 'FREE_FORM' },
+const ASSESSABLE_CONCEPTS: string[] = [
+  // ── Data Types ──────────────────────────────────────────────────────────
+  'Data Types',
+  'Value Types',
+  'Reference Types',
 
-  // Difficulty 3 — 10 questions
-  { concept: 'Classes and Objects',      difficulty: 3, type: 'CODE_WRITING' },
-  { concept: 'Encapsulation',            difficulty: 3, type: 'CODE_WRITING' },
-  { concept: 'Inheritance',              difficulty: 3, type: 'CODE_WRITING' },
-  { concept: 'Polymorphism',             difficulty: 3, type: 'CODE_WRITING' },
-  { concept: 'Abstraction',              difficulty: 3, type: 'CODE_WRITING' },
-  { concept: 'Interfaces',               difficulty: 3, type: 'CODE_WRITING' },
-  { concept: 'Design Patterns',          difficulty: 3, type: 'FREE_FORM' },
-  { concept: 'SOLID Principles',         difficulty: 3, type: 'FREE_FORM' },
-  { concept: 'Method Overriding',        difficulty: 3, type: 'CODE_WRITING' },
-  { concept: 'Static vs Instance',       difficulty: 3, type: 'CODE_WRITING' },
+  // ── Fundamentals ────────────────────────────────────────────────────────
+  'Fundamentals',
+
+  // ── Four Pillars ────────────────────────────────────────────────────────
+  'Four Pillars',
+  '1. Encapsulation',
+  'Object State',
+  'Object Behavior',
+  'Method Signature',
+  'Constructors',
+  'Parameters',
+  'Data Hiding',
+  'Access Modifiers',
+  '2. Inheritance',
+  '3. Polymorphism',
+  'Overloading',
+  'Overriding',
+  'Subtype / Inclusion',
+  '4. Abstraction',
+
+  // ── Relationships ────────────────────────────────────────────────────────
+  'Relationships',
+  'IS_A',
+  'Inheritance (Extends)',
+  'Realization (Implements)',
+  'HAS_A',
+  'Dependency (weakest)',
+  'Association',
+  'Composition (strong ownership)',
+  'Aggregation (weak ownership)',
 ];
 
-const DIFFICULTY_LABELS: Record<number, string> = {
-  1: 'beginner (recall and basic understanding)',
-  2: 'intermediate (application and analysis)',
-  3: 'advanced (synthesis, evaluation, and complex problem-solving)',
-};
+// 3 D1 questions per concept — mix MC / FREE_FORM
+const TYPES_PER_CONCEPT: QuestionType[] = [
+  'MULTIPLE_CHOICE',
+  'MULTIPLE_CHOICE',
+  'FREE_FORM',
+];
+
+interface SeedItem {
+  concept: string;
+  difficulty: 1 | 2 | 3;
+  type: QuestionType;
+}
+
+const SEED_PLAN: SeedItem[] = ASSESSABLE_CONCEPTS.flatMap(concept =>
+  TYPES_PER_CONCEPT.map(type => ({ concept, difficulty: 1 as const, type }))
+);
 
 async function generateOne(
   concept: string,
@@ -81,13 +96,13 @@ async function generateOne(
 
   const prompt = `You are an expert C# / OOP instructor. Generate exactly 1 ${type.replace(/_/g, ' ').toLowerCase()} question about "${concept}" for an OOP course.
 
-Difficulty: ${difficulty}/3 — ${DIFFICULTY_LABELS[difficulty]}
+Difficulty: ${difficulty}/3 — beginner (recall and basic understanding)
+
+Context: This question is for a concept map node named "${concept}". The question should test understanding of this specific concept, including any sub-topics it encompasses (e.g. a "Constructors" question may cover default vs parametrized constructors; an "Access Modifiers" question may cover public/private/protected).
 
 ${isMC
   ? 'Include an "options" array with exactly 4 strings. The correct_answer must exactly match one of the options.'
-  : type === 'CODE_WRITING'
-    ? 'No options needed. correct_answer is a model C# solution. ai_grading_prompt evaluates student code using placeholder {{student_code}}.'
-    : 'No options needed. correct_answer is a model answer. ai_grading_prompt evaluates student response using placeholder {{student_answer}}.'}
+  : 'No options needed. correct_answer is a model answer. ai_grading_prompt evaluates student response using placeholder {{student_answer}}.'}
 
 Return ONLY a valid JSON object — no markdown, no explanation:
 {
@@ -123,7 +138,6 @@ function saveQuestion(
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `).run(questionId, concept, type, difficulty, q.question_text, optionsJson, q.correct_answer, q.grading_rubric, q.ai_grading_prompt);
 
-  // Auto-approve for seeding
   db.prepare(`
     INSERT INTO question_approvals (id, question_id, status, generated_by_ai)
     VALUES (?, ?, 'APPROVED', 1)
@@ -131,7 +145,9 @@ function saveQuestion(
 }
 
 async function main() {
-  console.log(`Seeding ${SEED_PLAN.length} questions...\n`);
+  console.log(`Seeding ${SEED_PLAN.length} questions (${ASSESSABLE_CONCEPTS.length} concepts × ${TYPES_PER_CONCEPT.length} questions each)...\n`);
+
+  let ok = 0, fail = 0;
 
   for (let i = 0; i < SEED_PLAN.length; i++) {
     const { concept, difficulty, type } = SEED_PLAN[i];
@@ -141,16 +157,18 @@ async function main() {
       const q = await generateOne(concept, type, difficulty);
       saveQuestion(concept, type, difficulty, q);
       console.log('✓');
+      ok++;
     } catch (err) {
       console.log(`✗ ${err instanceof Error ? err.message : err}`);
+      fail++;
     }
 
-    // Small delay to avoid rate limits
     await new Promise(r => setTimeout(r, 300));
   }
 
   const { cnt } = db.prepare("SELECT COUNT(*) as cnt FROM question_approvals WHERE status = 'APPROVED'").get() as { cnt: number };
-  console.log(`\nDone. Approved questions in DB: ${cnt}`);
+  console.log(`\nDone. Generated: ${ok} ✓  Failed: ${fail} ✗`);
+  console.log(`Total approved questions in DB: ${cnt}`);
 }
 
 main().catch(console.error);

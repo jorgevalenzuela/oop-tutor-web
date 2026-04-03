@@ -1,13 +1,14 @@
 import { NavLink } from 'react-router-dom'
 
-const tabs = [
-  { to: '/',        label: 'Tutor'           },
-  { to: '/exam',    label: 'Exam'            },
-  { to: '/graph',   label: 'Knowledge Graph' },
-  { to: '/settings', label: 'Settings'       },
-]
-
 export default function Navigation() {
+  const tabs = [
+    { to: '/',          label: 'Tutor'           },
+    { to: '/exam',      label: 'Exam'            },
+    { to: '/progress',  label: 'Progress'        },
+    { to: '/graph',     label: 'Knowledge Graph' },
+    { to: '/settings',  label: 'Settings'        },
+  ]
+
   return (
     <nav
       className="flex-shrink-0 flex border-b"

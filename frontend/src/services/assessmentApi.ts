@@ -2,7 +2,6 @@ import axios from 'axios'
 
 const BASE_URL = 'http://localhost:3002'
 
-// Token injected per-call from AuthContext
 let authToken: string | null = null
 
 export function setAuthToken(token: string | null) {
@@ -25,6 +24,16 @@ async function get<T>(path: string): Promise<T> {
   return res.data
 }
 
+async function put<T>(path: string, body?: unknown): Promise<T> {
+  const res = await axios.put<T>(`${BASE_URL}${path}`, body, { headers: headers() })
+  return res.data
+}
+
+async function del<T>(path: string): Promise<T> {
+  const res = await axios.delete<T>(`${BASE_URL}${path}`, { headers: headers() })
+  return res.data
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AuthUser {
@@ -44,6 +53,7 @@ export interface ExamInstance {
   time_taken_seconds: number | null
   overall_score: number | null
   mastery_achieved: number
+  continued_after_mastery: number
 }
 
 export interface ExamQuestion {
@@ -73,6 +83,8 @@ export interface AnswerResult {
   feedback: string
   isCorrect: boolean
   masteryAchieved: boolean
+  examShouldStop: boolean
+  conceptsMastered: string[]
 }
 
 export interface ConceptMastery {
@@ -100,55 +112,103 @@ export interface ExamSummary extends ExamInstance {
   answers: ExamSummaryAnswer[]
 }
 
+export interface ExamStatusReport {
+  exam: ExamInstance
+  questionsTotal: number
+  questionsAnswered: number
+  conceptsMastered: string[]
+  conceptsInExam: string[]
+}
+
+export interface ProgressReport {
+  concepts_mastered: ConceptMastery[]
+  concepts_close: ConceptMastery[]
+  concepts_struggling: ConceptMastery[]
+  overall_mastery_pct: number
+  exam_count: number
+  best_score: number | null
+  last_attempt_at: string | null
+  total_time_seconds: number
+}
+
+export interface MasteryConfig {
+  concept: string
+  score_threshold: number
+  consecutive_required: number
+  required_for_cert: number
+  is_default?: boolean
+}
+
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 export const assessmentApi = {
+  // Auth
   async requestCode(email: string): Promise<void> {
     await post('/api/auth/request-code', { email })
   },
-
   async verifyCode(email: string, code: string): Promise<{ user: AuthUser; token: string }> {
     return post('/api/auth/verify-code', { email, code })
   },
-
   async logout(): Promise<void> {
     await post('/api/auth/logout')
   },
 
+  // Exam
   async startExam(): Promise<StartExamResponse> {
     return post('/api/exam/start')
   },
-
   async getQuestion(examId: string, index: number): Promise<ExamQuestion> {
     return get(`/api/exam/${examId}/question/${index}`)
   },
-
+  async getExamStatus(examId: string): Promise<ExamStatusReport> {
+    return get(`/api/exam/${examId}/status`)
+  },
   async submitAnswer(
     examId: string,
     questionId: string,
     answerGiven: string,
-    timeOnQuestionSeconds?: number
+    timeOnQuestionSeconds?: number,
+    continuedAfterMastery?: boolean
   ): Promise<AnswerResult> {
-    return post(`/api/exam/${examId}/answer`, { questionId, answerGiven, timeOnQuestionSeconds })
+    return post(`/api/exam/${examId}/answer`, { questionId, answerGiven, timeOnQuestionSeconds, continuedAfterMastery })
   },
-
   async completeExam(examId: string): Promise<ExamSummary> {
     return post(`/api/exam/${examId}/complete`)
   },
-
   async abandonExam(examId: string): Promise<void> {
     await post(`/api/exam/${examId}/abandon`)
   },
-
   async getHistory(): Promise<ExamInstance[]> {
     return get('/api/exam/history')
   },
-
   async getMastery(): Promise<ConceptMastery[]> {
     return get('/api/exam/mastery')
   },
-
+  async getProgress(): Promise<ProgressReport> {
+    return get('/api/exam/progress')
+  },
   async getActiveExam(): Promise<{ exam: ExamInstance; questions: ExamQuestionMeta[] } | null> {
     return get('/api/exam/active')
+  },
+
+  // Mastery config (instructor)
+  async listMasteryConfigs(): Promise<MasteryConfig[]> {
+    return get('/api/mastery-config')
+  },
+  async getMasteryConfig(concept: string): Promise<MasteryConfig> {
+    return get(`/api/mastery-config/${encodeURIComponent(concept)}`)
+  },
+  async saveMasteryConfig(
+    concept: string,
+    scoreThreshold: number,
+    consecutiveRequired: number,
+    requiredForCert: boolean
+  ): Promise<MasteryConfig> {
+    return put(`/api/mastery-config/${encodeURIComponent(concept)}`, {
+      scoreThreshold, consecutiveRequired, requiredForCert,
+    })
+  },
+  async resetMasteryConfig(concept: string): Promise<void> {
+    await del(`/api/mastery-config/${encodeURIComponent(concept)}`)
   },
 }

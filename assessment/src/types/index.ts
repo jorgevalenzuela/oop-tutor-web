@@ -159,10 +159,46 @@ export interface GradingResult {
   isCorrect: boolean;
 }
 
+export interface MasteryConfig {
+  id: string;
+  concept: string;
+  score_threshold: number;
+  consecutive_required: number;
+  required_for_cert: number;
+  created_by: string | null;
+  updated_at: string;
+}
+
+export interface ProgressReport {
+  concepts_mastered: ConceptMastery[];
+  concepts_close: ConceptMastery[];
+  concepts_struggling: ConceptMastery[];
+  overall_mastery_pct: number;
+  exam_count: number;
+  best_score: number | null;
+  last_attempt_at: string | null;
+  total_time_seconds: number;
+}
+
 export interface SubmitAnswerBody {
   questionId: string;
   answerGiven: string;
   timeOnQuestionSeconds?: number;
+  continuedAfterMastery?: boolean;
+}
+
+export interface AnswerResponse extends GradingResult {
+  masteryAchieved: boolean;
+  examShouldStop: boolean;
+  conceptsMastered: string[];
+}
+
+export interface ExamStatusReport {
+  exam: ExamInstance;
+  questionsTotal: number;
+  questionsAnswered: number;
+  conceptsMastered: string[];
+  conceptsInExam: string[];
 }
 
 export interface ExamSummary extends ExamInstance {

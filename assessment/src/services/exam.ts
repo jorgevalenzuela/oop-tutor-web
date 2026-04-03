@@ -6,15 +6,28 @@ import {
   ExamSummary,
   StudentAnswer,
   ConceptMastery,
+  MasteryConfig,
   Question,
-  QuestionWithApproval,
   DifficultyRange,
   GradingResult,
   SubmitAnswerBody,
+  AnswerResponse,
+  ExamStatusReport,
+  ProgressReport,
 } from '../types';
 
-const MASTERY_SCORE_THRESHOLD = 0.8;
-const MASTERY_CONSECUTIVE_THRESHOLD = 3;
+const DEFAULT_SCORE_THRESHOLD = 0.8;
+const DEFAULT_CONSECUTIVE_REQUIRED = 3;
+
+// ─── Mastery config helpers ──────────────────────────────────────────────────
+
+function getMasteryConfig(concept: string): { scoreThreshold: number; consecutiveRequired: number } {
+  const cfg = db.prepare('SELECT * FROM mastery_configs WHERE concept = ?').get(concept) as MasteryConfig | undefined;
+  return {
+    scoreThreshold: cfg?.score_threshold ?? DEFAULT_SCORE_THRESHOLD,
+    consecutiveRequired: cfg?.consecutive_required ?? DEFAULT_CONSECUTIVE_REQUIRED,
+  };
+}
 
 // ─── Difficulty Mapping ──────────────────────────────────────────────────────
 
@@ -38,11 +51,10 @@ function getDifficultyLevels(range: DifficultyRange): number[] {
 
 // ─── Question Selection ──────────────────────────────────────────────────────
 
-function selectExamQuestions(studentId: string, difficultyRange: DifficultyRange): Question[] {
+function selectExamQuestions(_studentId: string, difficultyRange: DifficultyRange): Question[] {
   const levels = getDifficultyLevels(difficultyRange);
   const placeholders = levels.map(() => '?').join(',');
 
-  // Pick 10 random APPROVED questions matching difficulty, prefer ones student hasn't seen recently
   const questions = db.prepare(`
     SELECT q.*
     FROM questions q
@@ -67,7 +79,6 @@ export function startExam(studentId: string): {
   questions: { id: string; concept: string; type: string; difficulty: number }[];
   firstQuestion: Question;
 } {
-  // Count previous exams (including abandoned — attempt number always increments)
   const { cnt } = db.prepare(
     'SELECT COUNT(*) as cnt FROM exam_instances WHERE student_id = ?'
   ).get(studentId) as { cnt: number };
@@ -79,12 +90,10 @@ export function startExam(studentId: string): {
   const examId = uuidv4();
 
   db.prepare(`
-    INSERT INTO exam_instances (id, student_id, attempt_number, difficulty_range, status, started_at, mastery_achieved)
-    VALUES (?, ?, ?, ?, 'IN_PROGRESS', datetime('now'), 0)
+    INSERT INTO exam_instances (id, student_id, attempt_number, difficulty_range, status, started_at, mastery_achieved, continued_after_mastery)
+    VALUES (?, ?, ?, ?, 'IN_PROGRESS', datetime('now'), 0, 0)
   `).run(examId, studentId, attemptNumber, difficultyRange);
 
-  // Store question order as a JSON metadata record (reuse a spare field by inserting a sentinel answer)
-  // We store question order in the exam by creating placeholder student_answer rows with null scores
   for (const q of questions) {
     db.prepare(`
       INSERT INTO student_answers (id, exam_id, question_id, answer_given, answered_at)
@@ -97,8 +106,14 @@ export function startExam(studentId: string): {
   return {
     exam,
     questions: questions.map(q => ({ id: q.id, concept: q.concept, type: q.type, difficulty: q.difficulty })),
-    firstQuestion: questions[0],
+    firstQuestion: stripSensitiveFields(questions[0]),
   };
+}
+
+function stripSensitiveFields(q: Question): Question {
+  const { correct_answer, grading_rubric, ai_grading_prompt, ...safe } = q;
+  void correct_answer; void grading_rubric; void ai_grading_prompt;
+  return safe as Question;
 }
 
 export function getExamQuestion(examId: string, studentId: string, questionIndex: number): Question {
@@ -116,20 +131,49 @@ export function getExamQuestion(examId: string, studentId: string, questionIndex
     throw new Error('Question index out of range');
   }
 
-  const questionId = answers[questionIndex].question_id;
-  const question = db.prepare('SELECT * FROM questions WHERE id = ?').get(questionId) as Question;
+  const question = db.prepare('SELECT * FROM questions WHERE id = ?').get(answers[questionIndex].question_id) as Question;
+  return stripSensitiveFields(question);
+}
 
-  // Strip the correct answer before returning to student
-  const { correct_answer, grading_rubric, ai_grading_prompt, ...safeQuestion } = question;
-  void correct_answer; void grading_rubric; void ai_grading_prompt;
-  return safeQuestion as Question;
+export function getExamStatus(examId: string, studentId: string): ExamStatusReport {
+  const exam = db.prepare(
+    "SELECT * FROM exam_instances WHERE id = ? AND student_id = ?"
+  ).get(examId, studentId) as ExamInstance | undefined;
+
+  if (!exam) throw new Error('Exam not found');
+
+  const rows = db.prepare(`
+    SELECT q.concept, sa.answer_given
+    FROM student_answers sa
+    JOIN questions q ON q.id = sa.question_id
+    WHERE sa.exam_id = ?
+    ORDER BY sa.rowid
+  `).all(examId) as { concept: string; answer_given: string }[];
+
+  const answeredCount = rows.filter(r => r.answer_given !== '__PENDING__').length;
+  const conceptsInExam = [...new Set(rows.map(r => r.concept))];
+
+  const masteredInExam = conceptsInExam.filter(concept => {
+    const m = db.prepare(
+      'SELECT mastery_achieved FROM concept_mastery WHERE student_id = ? AND concept = ?'
+    ).get(studentId, concept) as { mastery_achieved: number } | undefined;
+    return m?.mastery_achieved === 1;
+  });
+
+  return {
+    exam,
+    questionsTotal: rows.length,
+    questionsAnswered: answeredCount,
+    conceptsMastered: masteredInExam,
+    conceptsInExam,
+  };
 }
 
 export async function submitAnswer(
   examId: string,
   studentId: string,
   body: SubmitAnswerBody
-): Promise<GradingResult & { masteryAchieved: boolean }> {
+): Promise<AnswerResponse> {
   const exam = db.prepare(
     "SELECT * FROM exam_instances WHERE id = ? AND student_id = ? AND status = 'IN_PROGRESS'"
   ).get(examId, studentId) as ExamInstance | undefined;
@@ -139,7 +183,6 @@ export async function submitAnswer(
   const question = db.prepare('SELECT * FROM questions WHERE id = ?').get(body.questionId) as Question | undefined;
   if (!question) throw new Error('Question not found');
 
-  // Verify question belongs to this exam
   const belongs = db.prepare(
     "SELECT id FROM student_answers WHERE exam_id = ? AND question_id = ? AND answer_given = '__PENDING__'"
   ).get(examId, body.questionId);
@@ -147,7 +190,6 @@ export async function submitAnswer(
 
   const result = await gradeAnswer(question, body.answerGiven);
 
-  // Update the pending answer row
   db.prepare(`
     UPDATE student_answers
     SET answer_given = ?,
@@ -158,46 +200,60 @@ export async function submitAnswer(
         answered_at = datetime('now')
     WHERE exam_id = ? AND question_id = ? AND answer_given = '__PENDING__'
   `).run(
-    body.answerGiven,
-    result.score,
-    result.feedback,
-    result.isCorrect ? 1 : 0,
-    body.timeOnQuestionSeconds ?? null,
-    examId,
-    body.questionId
+    body.answerGiven, result.score, result.feedback, result.isCorrect ? 1 : 0,
+    body.timeOnQuestionSeconds ?? null, examId, body.questionId
   );
 
-  // Update concept mastery
-  const masteryAchieved = updateConceptMastery(studentId, question.concept, result);
+  // Track if student chose to continue past mastery
+  if (body.continuedAfterMastery) {
+    db.prepare('UPDATE exam_instances SET continued_after_mastery = 1 WHERE id = ?').run(examId);
+  }
 
-  return { ...result, masteryAchieved };
+  const { masteryAchieved } = updateConceptMastery(studentId, question.concept, result);
+
+  // Check if ALL concepts in this exam are now mastered
+  const status = getExamStatus(examId, studentId);
+  const examShouldStop = status.conceptsInExam.length > 0 &&
+    status.conceptsMastered.length === status.conceptsInExam.length;
+
+  return {
+    ...result,
+    masteryAchieved,
+    examShouldStop,
+    conceptsMastered: status.conceptsMastered,
+  };
 }
 
-function updateConceptMastery(studentId: string, concept: string, result: GradingResult): boolean {
+function updateConceptMastery(
+  studentId: string,
+  concept: string,
+  result: GradingResult
+): { masteryAchieved: boolean } {
+  const { scoreThreshold, consecutiveRequired } = getMasteryConfig(concept);
+
   const existing = db.prepare(
     'SELECT * FROM concept_mastery WHERE student_id = ? AND concept = ?'
   ).get(studentId, concept) as ConceptMastery | undefined;
 
   if (!existing) {
     const newConsecutive = result.isCorrect ? 1 : 0;
-    const masteryAchieved = result.score >= MASTERY_SCORE_THRESHOLD && newConsecutive >= MASTERY_CONSECUTIVE_THRESHOLD ? 1 : 0;
+    const alreadyMastered = result.score >= scoreThreshold && newConsecutive >= consecutiveRequired ? 1 : 0;
     db.prepare(`
       INSERT INTO concept_mastery (id, student_id, concept, average_score, consecutive_correct, total_attempts, mastery_achieved, mastery_achieved_at, last_attempted_at)
       VALUES (?, ?, ?, ?, ?, 1, ?, ?, datetime('now'))
     `).run(
-      uuidv4(), studentId, concept,
-      result.score, newConsecutive,
-      masteryAchieved,
-      masteryAchieved ? new Date().toISOString() : null
+      uuidv4(), studentId, concept, result.score, newConsecutive,
+      alreadyMastered,
+      alreadyMastered ? new Date().toISOString() : null
     );
-    return masteryAchieved === 1;
+    return { masteryAchieved: alreadyMastered === 1 };
   }
 
   const newTotal = existing.total_attempts + 1;
   const newAverage = (existing.average_score * existing.total_attempts + result.score) / newTotal;
   const newConsecutive = result.isCorrect ? existing.consecutive_correct + 1 : 0;
   const alreadyMastered = existing.mastery_achieved === 1;
-  const nowMastered = !alreadyMastered && newAverage >= MASTERY_SCORE_THRESHOLD && newConsecutive >= MASTERY_CONSECUTIVE_THRESHOLD;
+  const nowMastered = !alreadyMastered && newAverage >= scoreThreshold && newConsecutive >= consecutiveRequired;
 
   db.prepare(`
     UPDATE concept_mastery
@@ -215,7 +271,7 @@ function updateConceptMastery(studentId: string, concept: string, result: Gradin
     studentId, concept
   );
 
-  return nowMastered;
+  return { masteryAchieved: nowMastered };
 }
 
 export function completeExam(examId: string, studentId: string): ExamSummary {
@@ -229,15 +285,12 @@ export function completeExam(examId: string, studentId: string): ExamSummary {
     'SELECT * FROM student_answers WHERE exam_id = ? ORDER BY rowid'
   ).all(examId) as StudentAnswer[];
 
-  // Any still-pending answers count as 0
   const gradedAnswers = answers.filter(a => a.answer_given !== '__PENDING__');
   const totalScore = gradedAnswers.length > 0
     ? gradedAnswers.reduce((sum, a) => sum + (a.ai_score ?? 0), 0) / gradedAnswers.length
     : 0;
 
-  const startedAt = new Date(exam.started_at);
-  const now = new Date();
-  const timeTaken = Math.round((now.getTime() - startedAt.getTime()) / 1000);
+  const timeTaken = Math.round((Date.now() - new Date(exam.started_at.replace(' ', 'T') + 'Z').getTime()) / 1000);
 
   db.prepare(`
     UPDATE exam_instances
@@ -286,6 +339,41 @@ function buildExamSummary(examId: string): ExamSummary {
         correct_answer: (a as any).correct_answer,
       } as Question,
     })),
+  };
+}
+
+export function getProgress(studentId: string): ProgressReport {
+  const allMastery = db.prepare(
+    'SELECT * FROM concept_mastery WHERE student_id = ? ORDER BY concept ASC'
+  ).all(studentId) as ConceptMastery[];
+
+  const exams = db.prepare(
+    "SELECT * FROM exam_instances WHERE student_id = ? AND status = 'COMPLETED' ORDER BY started_at DESC"
+  ).all(studentId) as ExamInstance[];
+
+  const mastered = allMastery.filter(m => m.mastery_achieved === 1);
+  const close = allMastery.filter(m => m.mastery_achieved === 0 && m.average_score >= 0.5);
+  const struggling = allMastery.filter(m => m.mastery_achieved === 0 && m.average_score < 0.5);
+
+  const totalRequired = db.prepare(
+    "SELECT COUNT(DISTINCT concept) as cnt FROM mastery_configs WHERE required_for_cert = 1"
+  ).get() as { cnt: number };
+
+  const requiredCount = totalRequired.cnt || 10; // fallback to 10 if no configs set
+  const overallPct = Math.round((mastered.length / requiredCount) * 100);
+
+  const totalTime = exams.reduce((sum, e) => sum + (e.time_taken_seconds ?? 0), 0);
+  const bestScore = exams.length > 0 ? Math.max(...exams.map(e => e.overall_score ?? 0)) : null;
+
+  return {
+    concepts_mastered: mastered,
+    concepts_close: close,
+    concepts_struggling: struggling,
+    overall_mastery_pct: Math.min(100, overallPct),
+    exam_count: exams.length,
+    best_score: bestScore,
+    last_attempt_at: exams[0]?.started_at ?? null,
+    total_time_seconds: totalTime,
   };
 }
 

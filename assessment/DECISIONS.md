@@ -221,3 +221,75 @@ FREE_FORM and CODE_WRITING use Claude API (claude-sonnet-4-20250514).
 | AI Suggested | AI Accepted | AI Notes |
 |---|---|---|
 | Yes | Yes | No benefit to AI-grading deterministic question types |
+
+---
+
+### DEC-007: Mastery algorithm — rolling average + consecutive streak
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-007 |
+| **Date** | 2026-03-30 |
+| **Status** | Accepted |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+Mastery needs a signal that a student has both consistent performance
+(not a lucky one-off) and recent correct answers. A single score
+threshold alone allows a student to "bank" a good score and stop improving.
+
+**Decision:**
+Mastery = rolling average score ≥ threshold AND consecutive_correct ≥ required.
+Defaults: 80% threshold, 3 consecutive correct. Both are configurable per concept
+via the mastery_configs table (INSTRUCTOR/ADMIN only). A wrong answer resets
+consecutive_correct to 0 but does not change the rolling average.
+
+**Alternatives Considered:**
+- Score threshold only — rejected, doesn't capture recency
+- Elo/spaced-repetition — deferred, overkill for classroom scale
+- Fixed global config — rejected, instructors may want stricter thresholds
+  for core concepts (Encapsulation) vs optional ones (Design Patterns)
+
+**Consequences:**
+- Students who plateau must answer correctly several times in a row to master
+- Configurable per-concept without code changes
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Consecutive streak adds recency signal at minimal complexity cost |
+
+---
+
+### DEC-008: examShouldStop signal after each answer
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-008 |
+| **Date** | 2026-03-30 |
+| **Status** | Accepted |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+Once a student has mastered all concepts covered in an exam, continuing
+wastes time. The backend knows when this occurs after each answer submission.
+
+**Decision:**
+`submitAnswer` returns `examShouldStop: true` when all concepts in the exam
+reach mastery after the current answer. The frontend shows a mastery banner
+with two options: "View Results" (early complete) or "Continue Anyway"
+(sets continued_after_mastery = 1 in DB for analytics).
+
+**Alternatives Considered:**
+- Auto-complete on mastery — rejected, removes student agency
+- Poll exam status separately — rejected, the answer endpoint already has
+  all context needed; adding a round-trip is unnecessary
+
+**Consequences:**
+- Student sees immediate feedback when they've mastered everything
+- continued_after_mastery flag allows future analysis of post-mastery behavior
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Returning flag in answer response avoids extra round-trip |

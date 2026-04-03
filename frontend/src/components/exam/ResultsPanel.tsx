@@ -1,8 +1,10 @@
+import { useNavigate } from 'react-router-dom'
 import { ExamSummary, ConceptMastery } from '../../services/assessmentApi'
 
 interface ResultsPanelProps {
   summary: ExamSummary
   mastery: ConceptMastery[]
+  prevMastery: ConceptMastery[]
   onTakeAnother: () => void
 }
 
@@ -13,7 +15,32 @@ function formatTime(seconds: number | null): string {
   return `${m}m ${s}s`
 }
 
-export default function ResultsPanel({ summary, mastery, onTakeAnother }: ResultsPanelProps) {
+type ChangeBadge = 'mastered' | 'improved' | 'no-change' | 'first'
+
+function getChangeBadge(
+  concept: string,
+  currentScore: number,
+  mastery: ConceptMastery[],
+  prevMastery: ConceptMastery[],
+): ChangeBadge {
+  const current = mastery.find(m => m.concept === concept)
+  const prev = prevMastery.find(m => m.concept === concept)
+
+  if (current?.mastery_achieved === 1 && prev?.mastery_achieved !== 1) return 'mastered'
+  if (!prev) return 'first'
+  if (currentScore > prev.average_score + 0.01) return 'improved'
+  return 'no-change'
+}
+
+const BADGE_CFG = {
+  mastered:  { label: '★ Mastered',      bg: 'rgba(202,138,4,0.12)',  color: '#92400e' },
+  improved:  { label: '↑ Improved',      bg: 'rgba(22,163,74,0.1)',   color: '#15803d' },
+  'no-change': { label: '→ No change',   bg: 'rgba(60,52,137,0.08)', color: '#6b5fa8' },
+  first:     { label: 'First attempt',   bg: 'rgba(60,52,137,0.08)', color: '#6b5fa8' },
+}
+
+export default function ResultsPanel({ summary, mastery, prevMastery, onTakeAnother }: ResultsPanelProps) {
+  const navigate = useNavigate()
   const score = summary.overall_score ?? 0
   const scorePercent = Math.round(score * 100)
   const passed = score >= 0.8
@@ -56,20 +83,30 @@ export default function ResultsPanel({ summary, mastery, onTakeAnother }: Result
 
       {/* Per-concept scores */}
       <div>
-        <h3 className="text-sm font-medium mb-3" style={{ color: '#6b5fa8' }}>Score by Concept</h3>
-        <div className="space-y-2">
+        <h3 className="text-sm font-semibold mb-1" style={{ color: '#1e1635' }}>
+          This Exam — Concept Results
+        </h3>
+        <p className="text-xs italic mb-3" style={{ color: '#9e95c7' }}>
+          Scores shown are for this exam only. Visit the Progress tab for your overall mastery across all attempts.
+        </p>
+        <div className="space-y-3">
           {Object.entries(conceptScores).map(([concept, v]) => {
             const pct = Math.round((v.total / v.count) * 100)
-            const m = mastery.find(m => m.concept === concept)
+            const examScore = v.total / v.count
+            const badge = getChangeBadge(concept, examScore, mastery, prevMastery)
+            const badgeCfg = BADGE_CFG[badge]
             return (
               <div key={concept}>
-                <div className="flex items-center justify-between mb-1 text-sm">
-                  <span style={{ color: '#1e1635' }}>{concept}</span>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm" style={{ color: '#1e1635' }}>{concept}</span>
                   <div className="flex items-center gap-2">
-                    {m?.mastery_achieved === 1 && (
-                      <span className="text-xs" style={{ color: '#ca8a04' }}>★ Mastered</span>
-                    )}
-                    <span style={{ color: pct >= 80 ? '#15803d' : pct >= 60 ? '#ca8a04' : '#b91c1c' }}>
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full"
+                      style={{ backgroundColor: badgeCfg.bg, color: badgeCfg.color }}
+                    >
+                      {badgeCfg.label}
+                    </span>
+                    <span className="text-sm font-medium" style={{ color: pct >= 80 ? '#15803d' : pct >= 60 ? '#ca8a04' : '#b91c1c' }}>
                       {pct}%
                     </span>
                   </div>
@@ -110,13 +147,22 @@ export default function ResultsPanel({ summary, mastery, onTakeAnother }: Result
         </div>
       )}
 
-      <button
-        onClick={onTakeAnother}
-        className="w-full py-3 rounded-lg text-sm font-medium text-white"
-        style={{ backgroundColor: '#3C3489' }}
-      >
-        Take Another Exam
-      </button>
+      <div className="flex flex-col gap-3">
+        <button
+          onClick={() => navigate('/progress')}
+          className="w-full py-3 rounded-lg text-sm font-medium text-white"
+          style={{ backgroundColor: '#16a34a' }}
+        >
+          View Overall Progress
+        </button>
+        <button
+          onClick={onTakeAnother}
+          className="w-full py-3 rounded-lg text-sm font-medium"
+          style={{ backgroundColor: 'rgba(60,52,137,0.08)', color: '#3C3489', border: '1px solid rgba(60,52,137,0.2)' }}
+        >
+          Take Another Exam
+        </button>
+      </div>
     </div>
   )
 }

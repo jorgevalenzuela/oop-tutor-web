@@ -127,7 +127,25 @@ function initializeSchema(): void {
     CREATE INDEX IF NOT EXISTS idx_answers_question ON student_answers(question_id);
     CREATE INDEX IF NOT EXISTS idx_mastery_student_concept ON concept_mastery(student_id, concept);
     CREATE INDEX IF NOT EXISTS idx_mastery_achieved ON concept_mastery(mastery_achieved);
+
+    CREATE TABLE IF NOT EXISTS mastery_configs (
+      id TEXT PRIMARY KEY,
+      concept TEXT UNIQUE NOT NULL,
+      score_threshold REAL NOT NULL DEFAULT 0.8,
+      consecutive_required INTEGER NOT NULL DEFAULT 3,
+      required_for_cert INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_mastery_configs_concept ON mastery_configs(concept);
   `);
+
+  // Add continued_after_mastery column if it doesn't exist (safe migration)
+  const cols = db.prepare("PRAGMA table_info(exam_instances)").all() as { name: string }[];
+  if (!cols.find(c => c.name === 'continued_after_mastery')) {
+    db.prepare("ALTER TABLE exam_instances ADD COLUMN continued_after_mastery INTEGER NOT NULL DEFAULT 0").run();
+  }
 }
 
 initializeSchema();
