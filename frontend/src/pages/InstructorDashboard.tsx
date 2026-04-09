@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { assessmentApi, StudentRow, StudentDetail, AnalyticsReport } from '@/services/assessmentApi'
+import { assessmentApi, StudentRow, StudentDetail, AnalyticsReport, BloomLevelStat, FeedbackSummary } from '@/services/assessmentApi'
 import { useAuth } from '@/contexts/AuthContext'
-import { ChevronUp, ChevronDown, Search, X, Download, Award } from 'lucide-react'
+import { ChevronUp, ChevronDown, Search, X, Download, Award, MessageSquare, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 // ─── Analytics cards ──────────────────────────────────────────────────────────
 
@@ -59,6 +60,57 @@ function ConceptStatsList({ report }: { report: AnalyticsReport }) {
             </div>
           ))
         }
+      </div>
+    </div>
+  )
+}
+
+// ─── Bloom's pyramid ─────────────────────────────────────────────────────────
+
+const BLOOM_COLORS: Record<number, string> = {
+  1: '#6366f1', 2: '#3b82f6', 3: '#22c55e',
+  4: '#eab308', 5: '#f97316', 6: '#ef4444',
+}
+
+function BloomPyramid({ stats }: { stats: BloomLevelStat[] }) {
+  if (stats.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Bloom&apos;s Taxonomy Performance</p>
+        <p className="text-sm text-gray-400">No exam data yet</p>
+      </div>
+    )
+  }
+
+  const allLevels: BloomLevelStat[] = [1, 2, 3, 4, 5, 6].map(lvl => {
+    const found = stats.find(s => s.bloom_level === lvl)
+    return found ?? { bloom_level: lvl, label: ['Remember','Understand','Apply','Analyze','Evaluate','Create'][lvl - 1], avg_score: 0, attempt_count: 0 }
+  })
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Bloom&apos;s Taxonomy Performance</p>
+      <div className="space-y-2">
+        {allLevels.map(s => (
+          <div key={s.bloom_level} className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 w-20 shrink-0">L{s.bloom_level} {s.label}</span>
+            <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: s.attempt_count > 0 ? `${Math.round(s.avg_score * 100)}%` : '0%',
+                  backgroundColor: BLOOM_COLORS[s.bloom_level],
+                }}
+              />
+            </div>
+            <span className="text-xs font-medium text-gray-700 w-10 text-right shrink-0">
+              {s.attempt_count > 0 ? `${Math.round(s.avg_score * 100)}%` : '—'}
+            </span>
+            <span className="text-xs text-gray-400 w-16 shrink-0">
+              {s.attempt_count > 0 ? `${s.attempt_count} ans` : 'no data'}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -280,6 +332,76 @@ function StudentDetailPanel({
   )
 }
 
+// ─── Feedback section ─────────────────────────────────────────────────────────
+
+function FeedbackSection() {
+  const navigate = useNavigate()
+  const [summary, setSummary] = useState<FeedbackSummary | null>(null)
+
+  useEffect(() => {
+    assessmentApi.getFeedbackSummary().then(setSummary).catch(() => {})
+  }, [])
+
+  if (!summary) return null
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: '#6b5fa8' }}>Feedback</h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
+
+        {/* Tutor response ratings */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <ThumbsUp className="h-3.5 w-3.5" /> Tutor Response Ratings
+          </p>
+          {summary.tutor.length === 0
+            ? <p className="text-sm text-gray-400">No feedback yet</p>
+            : summary.tutor.map(item => (
+              <div key={item.reference_id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                <span className="text-xs text-gray-700 truncate pr-2">{item.reference_id}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-gray-400">{item.count}</span>
+                  {item.avg_rating >= 0
+                    ? <ThumbsUp className="h-3 w-3 text-green-500" />
+                    : <ThumbsDown className="h-3 w-3 text-red-500" />
+                  }
+                </div>
+              </div>
+            ))
+          }
+        </div>
+
+        {/* Flagged questions */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <ThumbsDown className="h-3.5 w-3.5 text-red-400" /> Flagged Questions
+          </p>
+          {summary.flagged_questions.length === 0
+            ? <p className="text-sm text-gray-400">No flagged questions</p>
+            : summary.flagged_questions.map(item => (
+              <div key={item.reference_id} className="py-1.5 border-b border-gray-50 last:border-0">
+                <p className="text-xs text-gray-600 font-mono truncate">{item.reference_id.slice(0, 18)}…</p>
+                {item.comments.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">"{item.comments[0]}"</p>
+                )}
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      <button
+        onClick={() => navigate('/discussion')}
+        className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors hover:bg-purple-50"
+        style={{ borderColor: '#AFA9EC', color: '#3C3489' }}
+      >
+        <MessageSquare className="h-4 w-4" />
+        View Discussion Board
+      </button>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function InstructorDashboard() {
@@ -351,6 +473,7 @@ export default function InstructorDashboard() {
         {/* Analytics */}
         {analytics && <AnalyticsCards report={analytics} />}
         {analytics && <ConceptStatsList report={analytics} />}
+        {analytics && <BloomPyramid stats={analytics.bloom_stats} />}
 
         {/* Search + table */}
         <div className="mb-3 flex items-center gap-3">
@@ -374,6 +497,8 @@ export default function InstructorDashboard() {
           onSort={handleSort}
           onSelect={s => setSelectedId(s.id)}
         />
+
+        <FeedbackSection />
       </div>
 
       {/* Detail slide-in */}

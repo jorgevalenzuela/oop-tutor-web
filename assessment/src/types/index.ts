@@ -39,11 +39,14 @@ export interface Session {
   expires_at: string;
 }
 
+export type BloomLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface Question {
   id: string;
   concept: string;
   type: QuestionType;
   difficulty: 1 | 2 | 3;
+  bloom_level: BloomLevel;
   question_text: string;
   options: string | null;
   correct_answer: string;
@@ -84,6 +87,7 @@ export interface CreateQuestionBody {
   concept: string;
   type: QuestionType;
   difficulty: 1 | 2 | 3;
+  bloom_level?: BloomLevel;
   question_text: string;
   options?: string[];
   correct_answer: string;
@@ -95,6 +99,7 @@ export interface GenerateQuestionsBody {
   concept: string;
   type: QuestionType;
   difficulty: 1 | 2 | 3;
+  bloomLevel?: BloomLevel;
   count: number;
 }
 
@@ -102,6 +107,7 @@ export interface UpdateQuestionBody {
   concept?: string;
   type?: QuestionType;
   difficulty?: 1 | 2 | 3;
+  bloom_level?: BloomLevel;
   question_text?: string;
   options?: string[];
   correct_answer?: string;
@@ -165,6 +171,7 @@ export interface MasteryConfig {
   score_threshold: number;
   consecutive_required: number;
   required_for_cert: number;
+  min_bloom_level_for_mastery: number;
   created_by: string | null;
   updated_at: string;
 }
@@ -238,6 +245,68 @@ export interface CertEligibility {
   remainingConcepts: string[];
 }
 
+// ─── Feedback + Discussion types ─────────────────────────────────────────────
+
+export interface TutorFeedback {
+  id: string;
+  student_id: string;
+  feedback_type: 'TUTOR_RESPONSE' | 'EXAM_QUESTION';
+  reference_id: string;
+  rating: 1 | -1;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface FeedbackSummaryItem {
+  reference_id: string;
+  avg_rating: number;
+  count: number;
+  comments: string[];
+}
+
+export interface FeedbackSummary {
+  tutor: FeedbackSummaryItem[];
+  flagged_questions: FeedbackSummaryItem[];
+}
+
+export interface DiscussionPost {
+  id: string;
+  student_id: string;
+  concept: string;
+  subject: string;
+  body: string;
+  is_resolved: number;
+  created_at: string;
+}
+
+export interface DiscussionReply {
+  id: string;
+  post_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface DiscussionPostWithMeta extends DiscussionPost {
+  author_name: string;
+  reply_count: number;
+}
+
+export interface DiscussionThread extends DiscussionPost {
+  author_name: string;
+  replies: (DiscussionReply & { author_name: string })[];
+}
+
+export interface FeedbackConfig {
+  id: string;
+  tutor_feedback_enabled: number;
+  exam_feedback_enabled: number;
+  discussion_enabled: number;
+  notification_email: string;
+  updated_by: string | null;
+  updated_at: string;
+}
+
 // ─── Instructor types ─────────────────────────────────────────────────────────
 
 export interface StudentRow {
@@ -266,6 +335,13 @@ export interface ConceptStat {
   attempt_count: number;
 }
 
+export interface BloomLevelStat {
+  bloom_level: number;
+  label: string;
+  avg_score: number;
+  attempt_count: number;
+}
+
 export interface AnalyticsReport {
   total_students: number;
   students_with_cert: number;
@@ -274,6 +350,7 @@ export interface AnalyticsReport {
   easiest_concepts: ConceptStat[];
   total_exams: number;
   avg_exam_score: number | null;
+  bloom_stats: BloomLevelStat[];
 }
 
 // Express augmentation

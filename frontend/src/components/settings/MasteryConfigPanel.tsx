@@ -5,13 +5,23 @@ import { getAssessableNodes } from '../../data/oopHierarchy'
 // Single source of truth — every concept/category node in the map
 const OOP_CONCEPTS = getAssessableNodes().map(n => n.label)
 
-const DEFAULTS = { score_threshold: 0.8, consecutive_required: 3, required_for_cert: 1 }
+const DEFAULTS = { score_threshold: 0.8, consecutive_required: 3, required_for_cert: 1, min_bloom_level_for_mastery: 3 }
+
+const BLOOM_OPTIONS = [
+  { value: 1, label: 'L1 — Remember' },
+  { value: 2, label: 'L2 — Understand' },
+  { value: 3, label: 'L3 — Apply' },
+  { value: 4, label: 'L4 — Analyze' },
+  { value: 5, label: 'L5 — Evaluate' },
+  { value: 6, label: 'L6 — Create' },
+]
 
 interface ConceptRowState {
   concept: string
   scoreThreshold: string
   consecutiveRequired: string
   requiredForCert: boolean
+  minBloomLevel: number
   isCustom: boolean
   saving: boolean
   saved: boolean
@@ -25,6 +35,7 @@ function toRow(concept: string, cfg: MasteryConfig | null): ConceptRowState {
     scoreThreshold: String(Math.round((cfg?.score_threshold ?? DEFAULTS.score_threshold) * 100)),
     consecutiveRequired: String(cfg?.consecutive_required ?? DEFAULTS.consecutive_required),
     requiredForCert: (cfg?.required_for_cert ?? DEFAULTS.required_for_cert) === 1,
+    minBloomLevel: cfg?.min_bloom_level_for_mastery ?? DEFAULTS.min_bloom_level_for_mastery,
     isCustom,
     saving: false,
     saved: false,
@@ -58,7 +69,7 @@ export default function MasteryConfigPanel() {
     }
     update(row.concept, { saving: true, error: '' })
     try {
-      await assessmentApi.saveMasteryConfig(row.concept, score, consecutive, row.requiredForCert)
+      await assessmentApi.saveMasteryConfig(row.concept, score, consecutive, row.requiredForCert, row.minBloomLevel)
       update(row.concept, { saving: false, saved: true, isCustom: true })
       setTimeout(() => update(row.concept, { saved: false }), 2000)
     } catch {
@@ -129,6 +140,19 @@ export default function MasteryConfigPanel() {
                 className="w-20 px-2 py-1.5 text-sm border rounded-md text-gray-900 outline-none focus:ring-1"
                 style={{ borderColor: '#d1d5db' }}
               />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Min Bloom level</label>
+              <select
+                value={row.minBloomLevel}
+                onChange={e => update(row.concept, { minBloomLevel: Number(e.target.value) })}
+                className="px-2 py-1.5 text-sm border rounded-md text-gray-900 outline-none focus:ring-1"
+                style={{ borderColor: '#d1d5db' }}
+              >
+                {BLOOM_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
             <div className="flex items-center gap-2 pb-1">
               <input

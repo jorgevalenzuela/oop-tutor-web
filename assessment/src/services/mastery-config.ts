@@ -15,21 +15,22 @@ export function upsertConfig(
   scoreThreshold: number,
   consecutiveRequired: number,
   requiredForCert: boolean,
-  createdBy: string
+  createdBy: string,
+  minBloomLevel = 3
 ): MasteryConfig {
   const existing = getConfig(concept);
 
   if (existing) {
     db.prepare(`
       UPDATE mastery_configs
-      SET score_threshold = ?, consecutive_required = ?, required_for_cert = ?, updated_at = datetime('now')
+      SET score_threshold = ?, consecutive_required = ?, required_for_cert = ?, min_bloom_level_for_mastery = ?, updated_at = datetime('now')
       WHERE concept = ?
-    `).run(scoreThreshold, consecutiveRequired, requiredForCert ? 1 : 0, concept);
+    `).run(scoreThreshold, consecutiveRequired, requiredForCert ? 1 : 0, minBloomLevel, concept);
   } else {
     db.prepare(`
-      INSERT INTO mastery_configs (id, concept, score_threshold, consecutive_required, required_for_cert, created_by, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-    `).run(uuidv4(), concept, scoreThreshold, consecutiveRequired, requiredForCert ? 1 : 0, createdBy);
+      INSERT INTO mastery_configs (id, concept, score_threshold, consecutive_required, required_for_cert, min_bloom_level_for_mastery, created_by, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `).run(uuidv4(), concept, scoreThreshold, consecutiveRequired, requiredForCert ? 1 : 0, minBloomLevel, createdBy);
   }
 
   return getConfig(concept) as MasteryConfig;

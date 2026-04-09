@@ -164,12 +164,67 @@ function initializeSchema(): void {
     CREATE INDEX IF NOT EXISTS idx_certificates_student ON certificates(student_id);
     CREATE INDEX IF NOT EXISTS idx_certificates_verification ON certificates(verification_code);
     CREATE INDEX IF NOT EXISTS idx_concept_scores_cert ON concept_scores(certificate_id);
+
+    CREATE TABLE IF NOT EXISTS tutor_feedback (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      feedback_type TEXT NOT NULL,
+      reference_id TEXT NOT NULL,
+      rating INTEGER NOT NULL,
+      comment TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS discussion_posts (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      concept TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      is_resolved INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS discussion_replies (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL REFERENCES discussion_posts(id) ON DELETE CASCADE,
+      author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS feedback_config (
+      id TEXT PRIMARY KEY,
+      tutor_feedback_enabled INTEGER NOT NULL DEFAULT 1,
+      exam_feedback_enabled INTEGER NOT NULL DEFAULT 1,
+      discussion_enabled INTEGER NOT NULL DEFAULT 1,
+      notification_email TEXT NOT NULL DEFAULT '',
+      updated_by TEXT REFERENCES users(id),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tutor_feedback_student ON tutor_feedback(student_id);
+    CREATE INDEX IF NOT EXISTS idx_tutor_feedback_ref ON tutor_feedback(reference_id);
+    CREATE INDEX IF NOT EXISTS idx_discussion_posts_concept ON discussion_posts(concept);
+    CREATE INDEX IF NOT EXISTS idx_discussion_posts_resolved ON discussion_posts(is_resolved);
+    CREATE INDEX IF NOT EXISTS idx_discussion_replies_post ON discussion_replies(post_id);
   `);
 
   // Add continued_after_mastery column if it doesn't exist (safe migration)
   const cols = db.prepare("PRAGMA table_info(exam_instances)").all() as { name: string }[];
   if (!cols.find(c => c.name === 'continued_after_mastery')) {
     db.prepare("ALTER TABLE exam_instances ADD COLUMN continued_after_mastery INTEGER NOT NULL DEFAULT 0").run();
+  }
+
+  // Bloom's Taxonomy migration
+  const qCols = db.prepare("PRAGMA table_info(questions)").all() as { name: string }[];
+  if (!qCols.find(c => c.name === 'bloom_level')) {
+    db.prepare("ALTER TABLE questions ADD COLUMN bloom_level INTEGER NOT NULL DEFAULT 1").run();
+  }
+
+  const mCols = db.prepare("PRAGMA table_info(mastery_configs)").all() as { name: string }[];
+  if (!mCols.find(c => c.name === 'min_bloom_level_for_mastery')) {
+    db.prepare("ALTER TABLE mastery_configs ADD COLUMN min_bloom_level_for_mastery INTEGER NOT NULL DEFAULT 3").run();
   }
 }
 

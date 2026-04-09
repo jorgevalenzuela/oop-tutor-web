@@ -14,6 +14,7 @@ export default function Navigation() {
     { to: '/exam',        label: 'Exam',               show: true },
     { to: '/progress',    label: 'Progress',           show: isStudent },
     { to: '/instructor',  label: 'Dashboard',          show: isInstructorOrTA },
+    { to: '/discussion',  label: 'Discussion',         show: true },
     { to: '/graph',       label: 'Knowledge Graph',    show: true },
     { to: '/settings',    label: 'Settings',           show: isInstructorOrAdmin },
   ].filter(t => t.show)

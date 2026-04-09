@@ -97,6 +97,10 @@ router.post(
       res.status(400).json({ error: 'Difficulty must be 1, 2, or 3' });
       return;
     }
+    if (body.bloomLevel !== undefined && ![1, 2, 3, 4, 5, 6].includes(body.bloomLevel)) {
+      res.status(400).json({ error: "bloomLevel must be 1–6" });
+      return;
+    }
     if (body.count < 1 || body.count > 10) {
       res.status(400).json({ error: 'count must be between 1 and 10' });
       return;

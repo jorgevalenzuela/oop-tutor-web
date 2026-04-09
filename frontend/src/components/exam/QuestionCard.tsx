@@ -3,7 +3,10 @@ import MCQuestion from './MCQuestion'
 import FreeFormQuestion from './FreeFormQuestion'
 import CodeQuestion from './CodeQuestion'
 import MatchingQuestion from './MatchingQuestion'
-import { ExamQuestion, AnswerResult } from '../../services/assessmentApi'
+import QuestionFlagButton from '@/components/feedback/QuestionFlagButton'
+import { ExamQuestion, AnswerResult, FeedbackConfig } from '../../services/assessmentApi'
+import { assessmentApi } from '../../services/assessmentApi'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface QuestionCardProps {
   question: ExamQuestion
@@ -27,10 +30,16 @@ export default function QuestionCard({
   onSubmit,
   onNext,
 }: QuestionCardProps) {
+  const { user } = useAuth()
   const [answer, setAnswer] = useState('')
   const [result, setResult] = useState<AnswerResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [feedbackConfig, setFeedbackConfig] = useState<FeedbackConfig | null>(null)
   const startTimeRef = useRef(Date.now())
+
+  useEffect(() => {
+    assessmentApi.getFeedbackConfig().then(setFeedbackConfig).catch(() => {})
+  }, [])
 
   useEffect(() => {
     setAnswer('')
@@ -157,6 +166,11 @@ export default function QuestionCard({
             )}
           </div>
           <p style={{ color: '#2d2450' }}>{result.feedback}</p>
+          {feedbackConfig?.exam_feedback_enabled === 1 && user?.role === 'STUDENT' && (
+            <div className="mt-2 pt-2 border-t border-current/10">
+              <QuestionFlagButton key={question.id} questionId={question.id} />
+            </div>
+          )}
         </div>
       )}
 

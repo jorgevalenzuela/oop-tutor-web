@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { QuestionType, Question, GradingResult } from '../types';
+import { QuestionType, Question, GradingResult, BloomLevel } from '../types';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -19,6 +19,24 @@ const DIFFICULTY_LABELS: Record<number, string> = {
   3: 'advanced (synthesis, evaluation, and complex problem-solving)',
 };
 
+const BLOOM_LABELS: Record<number, string> = {
+  1: "Remember — recall facts and definitions",
+  2: "Understand — explain concepts in own words",
+  3: "Apply — use the concept to solve a problem",
+  4: "Analyze — break down, compare, or identify issues",
+  5: "Evaluate — justify, critique, or assess a design",
+  6: "Create — design, construct, or produce a solution",
+};
+
+const BLOOM_STARTERS: Record<number, string> = {
+  1: 'Start the question with "Define...", "What is...", or "List the..."',
+  2: 'Start with "Explain...", "Describe in your own words...", or "Give an example of..."',
+  3: 'Start with "Write code that...", "Use [concept] to solve...", or "Implement a..."',
+  4: 'Start with "Compare and contrast...", "What is the difference between...", or "Identify the problem in this code..."',
+  5: 'Start with "Justify why...", "Which design is better and why...", or "Critique this implementation..."',
+  6: 'Start with "Design a class hierarchy for...", "Write a complete solution for...", or "Create a system that..."',
+};
+
 const TYPE_INSTRUCTIONS: Record<QuestionType, string> = {
   MULTIPLE_CHOICE:
     'Include an "options" array with exactly 4 strings (A–D choices, without the letter prefix). The correct_answer must be one of the option strings exactly.',
@@ -34,16 +52,20 @@ export async function generateQuestions(
   concept: string,
   type: QuestionType,
   difficulty: 1 | 2 | 3,
-  count: number
+  count: number,
+  bloomLevel?: BloomLevel
 ): Promise<GeneratedQuestion[]> {
   const diffLabel = DIFFICULTY_LABELS[difficulty];
   const typeInstructions = TYPE_INSTRUCTIONS[type];
+  const bloomInstruction = bloomLevel
+    ? `\nBloom's Taxonomy level: ${bloomLevel}/6 — ${BLOOM_LABELS[bloomLevel]}\n${BLOOM_STARTERS[bloomLevel]}`
+    : '';
 
   const prompt = `You are an expert computer science instructor creating questions for an Object-Oriented Programming course.
 
 Generate exactly ${count} ${type.replace(/_/g, ' ').toLowerCase()} question(s) about the OOP concept: "${concept}"
 
-Difficulty: ${difficulty}/3 — ${diffLabel}
+Difficulty: ${difficulty}/3 — ${diffLabel}${bloomInstruction}
 
 Question type instructions:
 ${typeInstructions}

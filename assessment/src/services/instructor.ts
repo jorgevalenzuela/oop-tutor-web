@@ -3,6 +3,7 @@ import {
   StudentRow,
   StudentDetail,
   AnalyticsReport,
+  BloomLevelStat,
   ConceptMastery,
   ExamInstance,
 } from '../types';
@@ -174,6 +175,30 @@ export function getAnalytics(): AnalyticsReport {
     attempt_count: r.attempt_count,
   }));
 
+  const BLOOM_LABEL_MAP: Record<number, string> = {
+    1: 'Remember', 2: 'Understand', 3: 'Apply', 4: 'Analyze', 5: 'Evaluate', 6: 'Create',
+  };
+
+  // Bloom's stats: avg score per level across all student_answers
+  const bloomRows = db.prepare(`
+    SELECT q.bloom_level,
+           AVG(sa.ai_score) as avg_score,
+           COUNT(*) as attempt_count
+    FROM student_answers sa
+    JOIN questions q ON q.id = sa.question_id
+    WHERE sa.answer_given != '__PENDING__'
+      AND sa.ai_score IS NOT NULL
+    GROUP BY q.bloom_level
+    ORDER BY q.bloom_level ASC
+  `).all() as { bloom_level: number; avg_score: number; attempt_count: number }[];
+
+  const bloomStats: BloomLevelStat[] = bloomRows.map(r => ({
+    bloom_level: r.bloom_level,
+    label: BLOOM_LABEL_MAP[r.bloom_level] ?? `Level ${r.bloom_level}`,
+    avg_score: Math.round(r.avg_score * 100) / 100,
+    attempt_count: r.attempt_count,
+  }));
+
   return {
     total_students: totalStudents,
     students_with_cert: studentsWithCert,
@@ -182,6 +207,7 @@ export function getAnalytics(): AnalyticsReport {
     easiest_concepts: easiest,
     total_exams: totalExams,
     avg_exam_score: avgScoreRow.avg !== null ? Math.round(avgScoreRow.avg * 100) / 100 : null,
+    bloom_stats: bloomStats,
   };
 }
 

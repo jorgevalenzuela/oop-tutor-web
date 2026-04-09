@@ -18,14 +18,16 @@ import {
 
 const DEFAULT_SCORE_THRESHOLD = 0.8;
 const DEFAULT_CONSECUTIVE_REQUIRED = 3;
+const DEFAULT_MIN_BLOOM_LEVEL = 3;
 
 // ─── Mastery config helpers ──────────────────────────────────────────────────
 
-function getMasteryConfig(concept: string): { scoreThreshold: number; consecutiveRequired: number } {
+function getMasteryConfig(concept: string): { scoreThreshold: number; consecutiveRequired: number; minBloomLevel: number } {
   const cfg = db.prepare('SELECT * FROM mastery_configs WHERE concept = ?').get(concept) as MasteryConfig | undefined;
   return {
     scoreThreshold: cfg?.score_threshold ?? DEFAULT_SCORE_THRESHOLD,
     consecutiveRequired: cfg?.consecutive_required ?? DEFAULT_CONSECUTIVE_REQUIRED,
+    minBloomLevel: cfg?.min_bloom_level_for_mastery ?? DEFAULT_MIN_BLOOM_LEVEL,
   };
 }
 
@@ -49,24 +51,64 @@ function getDifficultyLevels(range: DifficultyRange): number[] {
   }
 }
 
+function getBloomLevels(range: DifficultyRange): number[] {
+  switch (range) {
+    case 'L1':   return [1, 2];
+    case 'L1-2': return [1, 2, 3];
+    case 'ALL':  return [1, 2, 3, 4, 5, 6];
+    case 'L2-3': return [3, 4, 5];
+    case 'L3':   return [5, 6];
+  }
+}
+
 // ─── Question Selection ──────────────────────────────────────────────────────
 
 function selectExamQuestions(_studentId: string, difficultyRange: DifficultyRange): Question[] {
-  const levels = getDifficultyLevels(difficultyRange);
-  const placeholders = levels.map(() => '?').join(',');
+  const diffLevels = getDifficultyLevels(difficultyRange);
+  const bloomLevels = getBloomLevels(difficultyRange);
 
-  const questions = db.prepare(`
+  const diffPlaceholders = diffLevels.map(() => '?').join(',');
+  const bloomPlaceholders = bloomLevels.map(() => '?').join(',');
+
+  // Primary selection: match both difficulty AND bloom levels
+  let questions = db.prepare(`
     SELECT q.*
     FROM questions q
     JOIN question_approvals qa ON qa.question_id = q.id
     WHERE qa.status = 'APPROVED'
-      AND q.difficulty IN (${placeholders})
+      AND q.difficulty IN (${diffPlaceholders})
+      AND q.bloom_level IN (${bloomPlaceholders})
     ORDER BY RANDOM()
     LIMIT 10
-  `).all(...levels) as Question[];
+  `).all(...diffLevels, ...bloomLevels) as Question[];
+
+  // Fallback: not enough questions at target bloom levels — expand to all bloom levels
+  if (questions.length < 10) {
+    questions = db.prepare(`
+      SELECT q.*
+      FROM questions q
+      JOIN question_approvals qa ON qa.question_id = q.id
+      WHERE qa.status = 'APPROVED'
+        AND q.difficulty IN (${diffPlaceholders})
+      ORDER BY RANDOM()
+      LIMIT 10
+    `).all(...diffLevels) as Question[];
+  }
+
+  // Final fallback: ignore difficulty too — never fail to start an exam
+  if (questions.length < 10) {
+    questions = db.prepare(`
+      SELECT q.*
+      FROM questions q
+      JOIN question_approvals qa ON qa.question_id = q.id
+      WHERE qa.status = 'APPROVED'
+      ORDER BY RANDOM()
+      LIMIT 10
+    `).all() as Question[];
+  }
 
   if (questions.length < 10) {
-    throw new Error(`Not enough approved questions for difficulty range ${difficultyRange}. Found ${questions.length}, need 10.`);
+    throw new Error(`Not enough approved questions. Found ${questions.length}, need 10.`);
   }
 
   return questions;
@@ -209,7 +251,7 @@ export async function submitAnswer(
     db.prepare('UPDATE exam_instances SET continued_after_mastery = 1 WHERE id = ?').run(examId);
   }
 
-  const { masteryAchieved } = updateConceptMastery(studentId, question.concept, result);
+  const { masteryAchieved } = updateConceptMastery(studentId, question.concept, result, question.bloom_level);
 
   // Check if ALL concepts in this exam are now mastered
   const status = getExamStatus(examId, studentId);
@@ -227,22 +269,29 @@ export async function submitAnswer(
 function updateConceptMastery(
   studentId: string,
   concept: string,
-  result: GradingResult
+  result: GradingResult,
+  questionBloomLevel: number
 ): { masteryAchieved: boolean } {
-  const { scoreThreshold, consecutiveRequired } = getMasteryConfig(concept);
+  const { scoreThreshold, consecutiveRequired, minBloomLevel } = getMasteryConfig(concept);
+
+  // A correct answer only counts toward mastery if it meets the minimum Bloom level
+  const bloomQualifies = questionBloomLevel >= minBloomLevel;
+  const effectiveResult: GradingResult = bloomQualifies
+    ? result
+    : { ...result, isCorrect: false, score: Math.min(result.score, 0.79) };
 
   const existing = db.prepare(
     'SELECT * FROM concept_mastery WHERE student_id = ? AND concept = ?'
   ).get(studentId, concept) as ConceptMastery | undefined;
 
   if (!existing) {
-    const newConsecutive = result.isCorrect ? 1 : 0;
-    const alreadyMastered = result.score >= scoreThreshold && newConsecutive >= consecutiveRequired ? 1 : 0;
+    const newConsecutive = effectiveResult.isCorrect ? 1 : 0;
+    const alreadyMastered = effectiveResult.score >= scoreThreshold && newConsecutive >= consecutiveRequired ? 1 : 0;
     db.prepare(`
       INSERT INTO concept_mastery (id, student_id, concept, average_score, consecutive_correct, total_attempts, mastery_achieved, mastery_achieved_at, last_attempted_at)
       VALUES (?, ?, ?, ?, ?, 1, ?, ?, datetime('now'))
     `).run(
-      uuidv4(), studentId, concept, result.score, newConsecutive,
+      uuidv4(), studentId, concept, effectiveResult.score, newConsecutive,
       alreadyMastered,
       alreadyMastered ? new Date().toISOString() : null
     );
@@ -250,8 +299,8 @@ function updateConceptMastery(
   }
 
   const newTotal = existing.total_attempts + 1;
-  const newAverage = (existing.average_score * existing.total_attempts + result.score) / newTotal;
-  const newConsecutive = result.isCorrect ? existing.consecutive_correct + 1 : 0;
+  const newAverage = (existing.average_score * existing.total_attempts + effectiveResult.score) / newTotal;
+  const newConsecutive = effectiveResult.isCorrect ? existing.consecutive_correct + 1 : 0;
   const alreadyMastered = existing.mastery_achieved === 1;
   const nowMastered = !alreadyMastered && newAverage >= scoreThreshold && newConsecutive >= consecutiveRequired;
 

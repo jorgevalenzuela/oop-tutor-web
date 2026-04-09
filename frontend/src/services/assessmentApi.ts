@@ -136,6 +136,7 @@ export interface MasteryConfig {
   score_threshold: number
   consecutive_required: number
   required_for_cert: number
+  min_bloom_level_for_mastery: number
   is_default?: boolean
 }
 
@@ -195,6 +196,13 @@ export interface ConceptStat {
   attempt_count: number
 }
 
+export interface BloomLevelStat {
+  bloom_level: number
+  label: string
+  avg_score: number
+  attempt_count: number
+}
+
 export interface AnalyticsReport {
   total_students: number
   students_with_cert: number
@@ -203,6 +211,54 @@ export interface AnalyticsReport {
   easiest_concepts: ConceptStat[]
   total_exams: number
   avg_exam_score: number | null
+  bloom_stats: BloomLevelStat[]
+}
+
+export interface FeedbackConfig {
+  id: string
+  tutor_feedback_enabled: number
+  exam_feedback_enabled: number
+  discussion_enabled: number
+  notification_email: string
+  updated_by: string | null
+  updated_at: string
+}
+
+export interface FeedbackSummaryItem {
+  reference_id: string
+  avg_rating: number
+  count: number
+  comments: string[]
+}
+
+export interface FeedbackSummary {
+  tutor: FeedbackSummaryItem[]
+  flagged_questions: FeedbackSummaryItem[]
+}
+
+export interface DiscussionPostWithMeta {
+  id: string
+  student_id: string
+  concept: string
+  subject: string
+  body: string
+  is_resolved: number
+  created_at: string
+  author_name: string
+  reply_count: number
+}
+
+export interface DiscussionReply {
+  id: string
+  post_id: string
+  author_id: string
+  body: string
+  created_at: string
+  author_name: string
+}
+
+export interface DiscussionThread extends Omit<DiscussionPostWithMeta, 'reply_count'> {
+  replies: DiscussionReply[]
 }
 
 // ─── API calls ───────────────────────────────────────────────────────────────
@@ -268,10 +324,11 @@ export const assessmentApi = {
     concept: string,
     scoreThreshold: number,
     consecutiveRequired: number,
-    requiredForCert: boolean
+    requiredForCert: boolean,
+    minBloomLevel?: number
   ): Promise<MasteryConfig> {
     return put(`/api/mastery-config/${encodeURIComponent(concept)}`, {
-      scoreThreshold, consecutiveRequired, requiredForCert,
+      scoreThreshold, consecutiveRequired, requiredForCert, minBloomLevel,
     })
   },
   async resetMasteryConfig(concept: string): Promise<void> {
@@ -320,5 +377,51 @@ export const assessmentApi = {
   },
   exportCsvUrl(): string {
     return `${BASE_URL}/api/instructor/export`
+  },
+
+  // Feedback config
+  async getFeedbackConfig(): Promise<FeedbackConfig> {
+    return get('/api/feedback/config')
+  },
+  async updateFeedbackConfig(
+    tutorFeedbackEnabled: boolean,
+    examFeedbackEnabled: boolean,
+    discussionEnabled: boolean,
+    notificationEmail: string
+  ): Promise<FeedbackConfig> {
+    return put('/api/feedback/config', { tutorFeedbackEnabled, examFeedbackEnabled, discussionEnabled, notificationEmail })
+  },
+
+  // Feedback submission
+  async submitTutorFeedback(concept: string, rating: 1 | -1, comment?: string): Promise<void> {
+    await post('/api/feedback/tutor', { concept, rating, comment })
+  },
+  async submitQuestionFeedback(questionId: string, rating: 1 | -1, comment?: string): Promise<void> {
+    await post('/api/feedback/question', { questionId, rating, comment })
+  },
+  async getFeedbackSummary(): Promise<FeedbackSummary> {
+    return get('/api/feedback/summary')
+  },
+
+  // Discussion
+  async listDiscussion(page?: number, concept?: string, resolved?: boolean): Promise<{ posts: DiscussionPostWithMeta[]; total: number }> {
+    const params = new URLSearchParams()
+    if (page) params.set('page', String(page))
+    if (concept) params.set('concept', concept)
+    if (resolved !== undefined) params.set('resolved', String(resolved))
+    const qs = params.toString()
+    return get(`/api/discussion${qs ? `?${qs}` : ''}`)
+  },
+  async getDiscussionThread(postId: string): Promise<DiscussionThread> {
+    return get(`/api/discussion/${encodeURIComponent(postId)}`)
+  },
+  async createDiscussionPost(concept: string, subject: string, body: string): Promise<DiscussionPostWithMeta> {
+    return post('/api/discussion', { concept, subject, body })
+  },
+  async replyToPost(postId: string, body: string): Promise<DiscussionReply> {
+    return post(`/api/discussion/${encodeURIComponent(postId)}/reply`, { body })
+  },
+  async resolvePost(postId: string): Promise<void> {
+    await put(`/api/discussion/${encodeURIComponent(postId)}/resolve`)
   },
 }

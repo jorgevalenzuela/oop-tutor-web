@@ -7,6 +7,7 @@ import Settings from './pages/Settings'
 import ExamPage from './pages/ExamPage'
 import ProgressPage from './pages/ProgressPage'
 import InstructorDashboard from './pages/InstructorDashboard'
+import DiscussionPage from './pages/DiscussionPage'
 import LoginPage from './pages/LoginPage'
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
           <Route path="/exam" element={<ExamPage />} />
           <Route path="/progress" element={<ProgressPage />} />
           <Route path="/instructor" element={<InstructorDashboard />} />
+          <Route path="/discussion" element={<DiscussionPage />} />
           <Route path="/graph" element={<GraphView />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

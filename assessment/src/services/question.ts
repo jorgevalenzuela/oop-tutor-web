@@ -65,11 +65,12 @@ export function createQuestion(
   const id = uuidv4();
   const approvalId = uuidv4();
   const optionsJson = body.options ? JSON.stringify(body.options) : null;
+  const bloomLevel = body.bloom_level ?? 1;
 
   db.prepare(`
-    INSERT INTO questions (id, concept, type, difficulty, question_text, options, correct_answer, grading_rubric, ai_grading_prompt, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `).run(id, body.concept, body.type, body.difficulty, body.question_text, optionsJson, body.correct_answer, body.grading_rubric, body.ai_grading_prompt);
+    INSERT INTO questions (id, concept, type, difficulty, bloom_level, question_text, options, correct_answer, grading_rubric, ai_grading_prompt, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `).run(id, body.concept, body.type, body.difficulty, bloomLevel, body.question_text, optionsJson, body.correct_answer, body.grading_rubric, body.ai_grading_prompt);
 
   db.prepare(`
     INSERT INTO question_approvals (id, question_id, status, generated_by_ai)
@@ -82,13 +83,13 @@ export function createQuestion(
 export async function generateAndSaveQuestions(
   body: GenerateQuestionsBody
 ): Promise<QuestionWithApproval[]> {
-  const { concept, type, difficulty, count } = body;
+  const { concept, type, difficulty, bloomLevel, count } = body;
 
   if (count < 1 || count > 10) {
     throw new Error('count must be between 1 and 10');
   }
 
-  const generated = await generateQuestions(concept, type, difficulty, count);
+  const generated = await generateQuestions(concept, type, difficulty, count, bloomLevel);
 
   const saved: QuestionWithApproval[] = [];
   for (const q of generated) {
@@ -97,6 +98,7 @@ export async function generateAndSaveQuestions(
         concept,
         type,
         difficulty,
+        bloom_level: bloomLevel,
         question_text: q.question_text,
         options: q.options,
         correct_answer: q.correct_answer,
@@ -124,6 +126,7 @@ export function updateQuestion(
   if (body.concept !== undefined) { fields.push('concept = ?'); params.push(body.concept); }
   if (body.type !== undefined) { fields.push('type = ?'); params.push(body.type); }
   if (body.difficulty !== undefined) { fields.push('difficulty = ?'); params.push(body.difficulty); }
+  if (body.bloom_level !== undefined) { fields.push('bloom_level = ?'); params.push(body.bloom_level); }
   if (body.question_text !== undefined) { fields.push('question_text = ?'); params.push(body.question_text); }
   if (body.options !== undefined) { fields.push('options = ?'); params.push(JSON.stringify(body.options)); }
   if (body.correct_answer !== undefined) { fields.push('correct_answer = ?'); params.push(body.correct_answer); }

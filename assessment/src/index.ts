@@ -7,6 +7,8 @@ import examRouter from './routes/exam';
 import masteryConfigRouter from './routes/mastery-config';
 import certificateRouter from './routes/certificate';
 import instructorRouter from './routes/instructor';
+import feedbackRouter from './routes/feedback';
+import discussionRouter from './routes/discussion';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -25,6 +27,8 @@ app.use('/api/exam', examRouter);
 app.use('/api/mastery-config', masteryConfigRouter);
 app.use('/api/certificates', certificateRouter);
 app.use('/api/instructor', instructorRouter);
+app.use('/api/feedback', feedbackRouter);
+app.use('/api/discussion', discussionRouter);
 
 app.use(errorHandler);
 

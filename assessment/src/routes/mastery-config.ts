@@ -32,7 +32,7 @@ router.get('/:concept', (req: Request, res: Response): void => {
 // PUT /api/mastery-config/:concept
 router.put('/:concept', (req: Request, res: Response): void => {
   const concept = decodeURIComponent(req.params.concept as string);
-  const { scoreThreshold, consecutiveRequired, requiredForCert } = req.body;
+  const { scoreThreshold, consecutiveRequired, requiredForCert, minBloomLevel } = req.body;
 
   if (scoreThreshold == null || consecutiveRequired == null) {
     res.status(400).json({ error: 'scoreThreshold and consecutiveRequired are required' });
@@ -46,13 +46,18 @@ router.put('/:concept', (req: Request, res: Response): void => {
     res.status(400).json({ error: 'consecutiveRequired must be between 1 and 10' });
     return;
   }
+  if (minBloomLevel !== undefined && ![1, 2, 3, 4, 5, 6].includes(Number(minBloomLevel))) {
+    res.status(400).json({ error: 'minBloomLevel must be 1–6' });
+    return;
+  }
 
   const cfg = upsertConfig(
     concept,
     Number(scoreThreshold),
     Number(consecutiveRequired),
     requiredForCert !== false,
-    req.user!.id
+    req.user!.id,
+    minBloomLevel !== undefined ? Number(minBloomLevel) : 3
   );
   res.json(cfg);
 });

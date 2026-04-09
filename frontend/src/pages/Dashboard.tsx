@@ -1,15 +1,35 @@
-import { useState, useCallback, FormEvent, useRef } from 'react'
+import { useState, useCallback, useEffect, FormEvent, useRef } from 'react'
 import { Loader2, Send } from 'lucide-react'
 import { useQuerySubmit } from '@/hooks/useQuery'
 import ConceptMap3D from '@/components/map/ConceptMap3D'
 import FourColumnView from '@/components/query/FourColumnView'
+import TutorFeedbackBar from '@/components/feedback/TutorFeedbackBar'
+import { assessmentApi, FeedbackConfig } from '@/services/assessmentApi'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const { submitQuery, isLoading, response } = useQuerySubmit()
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null)
   const [freeFormText, setFreeFormText] = useState('')
+  const [feedbackConfig, setFeedbackConfig] = useState<FeedbackConfig | null>(null)
+  // Track the concept for which a response was received (for feedback)
+  const [respondedLabel, setRespondedLabel] = useState<string | null>(null)
   const hasPanes = response !== null || isLoading
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (user) {
+      assessmentApi.getFeedbackConfig().then(setFeedbackConfig).catch(() => {})
+    }
+  }, [user])
+
+  // When a new response arrives, lock in the concept it's for
+  useEffect(() => {
+    if (response && !isLoading) {
+      setRespondedLabel(selectedLabel)
+    }
+  }, [response, isLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNodeSelect = useCallback(
     (label: string) => {
@@ -27,6 +47,13 @@ export default function Dashboard() {
     submitQuery(q)
     setFreeFormText('')
   }
+
+  const showFeedback =
+    feedbackConfig?.tutor_feedback_enabled === 1 &&
+    response !== null &&
+    !isLoading &&
+    respondedLabel !== null &&
+    user?.role === 'STUDENT'
 
   return (
     <div className="flex flex-col" style={{ height: '100%' }}>
@@ -74,6 +101,13 @@ export default function Dashboard() {
             </p>
           )}
           <FourColumnView answer={response?.answer ?? null} isLoading={isLoading} />
+
+          {/* Feedback row — shown after response loads, students only */}
+          {showFeedback && (
+            <div className="mt-3 border-t border-gray-100 pt-2">
+              <TutorFeedbackBar key={respondedLabel} concept={respondedLabel!} />
+            </div>
+          )}
         </div>
       )}
 
