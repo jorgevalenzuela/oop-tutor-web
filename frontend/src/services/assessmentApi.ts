@@ -203,6 +203,23 @@ export interface BloomLevelStat {
   attempt_count: number
 }
 
+export interface SkipConceptStat {
+  concept: string
+  skip_count: number
+  avg_step_at_skip: number
+}
+
+export interface SkipReasonStat {
+  reason: string | null
+  count: number
+}
+
+export interface SkipStats {
+  most_skipped_concepts: SkipConceptStat[]
+  skip_reasons: SkipReasonStat[]
+  avg_step_at_skip_by_concept: SkipConceptStat[]
+}
+
 export interface AnalyticsReport {
   total_students: number
   students_with_cert: number
@@ -212,6 +229,7 @@ export interface AnalyticsReport {
   total_exams: number
   avg_exam_score: number | null
   bloom_stats: BloomLevelStat[]
+  skip_stats: SkipStats
 }
 
 export interface FeedbackConfig {

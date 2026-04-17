@@ -1,65 +1,14 @@
 import asyncio
-import re
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.services import retriever_service
 from app.services import query_service
-from app.services.guardrail import classify_input, response_is_valid, FALLBACK_RESPONSE
-from app.models.schemas import StructuredAnswer, StructuredQueryResponse
+from app.services.guardrail import classify_input
+from app.services.rag_service import generate_rag_answer
+from app.models.schemas import StructuredQueryResponse
 
 router = APIRouter()
-
-
-def parse_structured_response(raw_response: str) -> StructuredAnswer:
-    """Parse LLM response into 4 structured sections."""
-    sections = {
-        "english": "",
-        "oop": "",
-        "uml": "",
-        "csharp": ""
-    }
-
-    pattern = r'###\s*(ENGLISH|OOP|UML|CSHARP)\s*\n(.*?)(?=###\s*(?:ENGLISH|OOP|UML|CSHARP)|$)'
-    matches = re.findall(pattern, raw_response, re.DOTALL | re.IGNORECASE)
-
-    for section_name, content in matches:
-        key = section_name.lower()
-        if key in sections:
-            sections[key] = content.strip()
-
-    return StructuredAnswer(**sections)
-
-
-async def _run_query(question: str) -> dict:
-    """Run retrieval + chain and return parsed answer dict. Returns fallback on parse failure."""
-    reviews = await retriever_service.retrieve(question)
-    result = await query_service.run_chain(question, reviews)
-    raw_response = str(result)
-    parsed = parse_structured_response(raw_response)
-    answer = {
-        "english": parsed.english,
-        "oop": parsed.oop,
-        "uml": parsed.uml,
-        "csharp": parsed.csharp,
-    }
-
-    # Structural output validation: retry once if malformed
-    if not response_is_valid(answer):
-        result2 = await query_service.run_chain(question, reviews)
-        raw2 = str(result2)
-        parsed2 = parse_structured_response(raw2)
-        answer2 = {
-            "english": parsed2.english,
-            "oop": parsed2.oop,
-            "uml": parsed2.uml,
-            "csharp": parsed2.csharp,
-        }
-        if response_is_valid(answer2):
-            return answer2
-        return FALLBACK_RESPONSE
-
-    return answer
 
 
 @router.post("/query")
@@ -80,7 +29,7 @@ async def query_endpoint(payload: dict):
             "raw_response": "",
         })
 
-    answer = await _run_query(question)
+    answer = await generate_rag_answer(question)
 
     return JSONResponse({
         "question": question,

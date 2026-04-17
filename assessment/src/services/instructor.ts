@@ -6,6 +6,7 @@ import {
   BloomLevelStat,
   ConceptMastery,
   ExamInstance,
+  SkipStats,
 } from '../types';
 import { getMyCertificate } from './certificate';
 
@@ -199,6 +200,47 @@ export function getAnalytics(): AnalyticsReport {
     attempt_count: r.attempt_count,
   }));
 
+  // Skip stats — most skipped concepts (top 5), reason breakdown, avg step at skip
+  const mostSkipped = db.prepare(`
+    SELECT concept,
+           COUNT(*) as skip_count,
+           AVG(step_at_skip) as avg_step_at_skip
+    FROM skip_events
+    GROUP BY concept
+    ORDER BY skip_count DESC
+    LIMIT 5
+  `).all() as { concept: string; skip_count: number; avg_step_at_skip: number }[];
+
+  const skipReasons = db.prepare(`
+    SELECT skip_reason as reason, COUNT(*) as count
+    FROM skip_events
+    GROUP BY skip_reason
+    ORDER BY count DESC
+  `).all() as { reason: string | null; count: number }[];
+
+  const avgStepByConcept = db.prepare(`
+    SELECT concept,
+           COUNT(*) as skip_count,
+           AVG(step_at_skip) as avg_step_at_skip
+    FROM skip_events
+    GROUP BY concept
+    ORDER BY avg_step_at_skip ASC
+  `).all() as { concept: string; skip_count: number; avg_step_at_skip: number }[];
+
+  const skipStats: SkipStats = {
+    most_skipped_concepts: mostSkipped.map(r => ({
+      concept: r.concept,
+      skip_count: r.skip_count,
+      avg_step_at_skip: Math.round(r.avg_step_at_skip * 10) / 10,
+    })),
+    skip_reasons: skipReasons,
+    avg_step_at_skip_by_concept: avgStepByConcept.map(r => ({
+      concept: r.concept,
+      skip_count: r.skip_count,
+      avg_step_at_skip: Math.round(r.avg_step_at_skip * 10) / 10,
+    })),
+  };
+
   return {
     total_students: totalStudents,
     students_with_cert: studentsWithCert,
@@ -208,6 +250,7 @@ export function getAnalytics(): AnalyticsReport {
     total_exams: totalExams,
     avg_exam_score: avgScoreRow.avg !== null ? Math.round(avgScoreRow.avg * 100) / 100 : null,
     bloom_stats: bloomStats,
+    skip_stats: skipStats,
   };
 }
 

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import query as query_router
 from app.api.routes import graph as graph_router
 from app.api.routes import documents as documents_router
+from app.api.routes import socratic as socratic_router
 
 app = FastAPI(title="CIS501 Assistant Backend")
 
@@ -18,6 +19,7 @@ app.add_middleware(
 app.include_router(query_router.router, prefix="/api")
 app.include_router(graph_router.router, prefix="/api")
 app.include_router(documents_router.router, prefix="/api")
+app.include_router(socratic_router.router, prefix="/api")
 
 
 @app.get("/api/health")

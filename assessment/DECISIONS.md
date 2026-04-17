@@ -855,3 +855,116 @@ input is never classified twice.
 | AI Suggested | AI Accepted | AI Notes |
 |---|---|---|
 | No | Yes | User decision: replace entire system, not patch again |
+
+---
+
+### DEC-020: Socratic-Zuela — Jorge Valenzuela's 6-step guided discovery dialogue
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-020 |
+| **Date** | 2026-04-15 |
+| **Status** | Accepted |
+| **Iteration** | 7 — Socratic-Zuela (Guided Discovery Mode) |
+| **Project** | OOP Tutor Assessment + Backend |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+The Explore mode (click node → 4-pane answer) gives students information
+without requiring them to engage with it. Research on constructivist pedagogy
+shows that students retain concepts better when they arrive at understanding
+through guided questioning rather than passive consumption.
+Jorge Valenzuela's 6-step method (Activate → Anchor → Bridge → Formalize →
+Implement → Confirm) structures this discovery process.
+
+**Decision:**
+Add a global "Guided Discovery" mode toggle in the navigation bar, visible
+only on the Tutor tab. In this mode, concept node clicks start a Socratic
+dialogue instead of the immediate 4-pane response. The dialogue follows the
+6-step method. The 4-pane reward (English, OOP, C# only — no UML in Phase 1)
+is shown only after step 6 completion or a voluntary skip.
+
+New components:
+- `backend/app/services/rag_service.py` — shared RAG logic extracted from query.py
+- `backend/app/services/socratic_service.py` — 6-step prompt builder + Claude API call
+- `backend/app/api/routes/socratic.py` — POST /api/socratic/chat
+- `frontend/src/contexts/TutorModeContext.tsx` — global mode state via React Context
+- `frontend/src/components/socratic/` — ModeToggle, SocraticLegend, DialoguePanel,
+  SkipButton, CompletionCard
+
+**Tone selection heuristic:**
+  - bloom_level 1-2 → curious_colleague
+  - bloom_level 3-4 → patient_professor
+  - bloom_level 5-6 → socratic_challenger
+  - student_message < 10 words → curious_colleague (override)
+  - student_message is confident and detailed → socratic_challenger (override)
+bloom_level is sourced from mastery_configs.min_bloom_level_for_mastery,
+fetched on mode switch. Defaults to 3 (patient_professor) if not found.
+
+**Alternatives Considered:**
+- State in App.tsx + prop drilling — rejected; drilling through AppLayout
+  to Navigation and Dashboard adds unnecessary coupling. React Context is
+  the idiomatic solution for cross-tree shared state.
+- Separate page/route for Guided Discovery — rejected; the mode toggles the
+  behavior of the existing Tutor page without requiring navigation.
+- GPT-4o for the dialogue — rejected; project uses Claude exclusively.
+
+**Consequences:**
+- Explore mode is entirely unchanged — /api/query is not touched.
+- Session memory (conversation history) lives in frontend state only;
+  cleared on concept switch or page refresh. No persistence layer needed
+  for Phase 1.
+- Guided Discovery does NOT affect mastery score — assessment stays in
+  the exam engine only.
+- UML pane is omitted from the reward (Phase 1 decision — can be added later).
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Architecture matches spec; Context preferred over prop drilling |
+
+---
+
+### DEC-021: Skip events table — analytics for Guided Discovery engagement
+
+| Field | Details |
+|---|---|
+| **ID** | DEC-021 |
+| **Date** | 2026-04-15 |
+| **Status** | Accepted |
+| **Iteration** | 7 — Socratic-Zuela (Guided Discovery Mode) |
+| **Project** | OOP Tutor Assessment |
+| **Author** | Jorge Valenzuela |
+
+**Context:**
+When a student skips the Socratic dialogue, understanding *why* and *when*
+they skip is valuable for curriculum improvement. If most students skip at
+step 2 for "Encapsulation" with reason "overwhelmed", the concept's Anchor
+step likely needs revision.
+
+**Decision:**
+New `skip_events` table in SQLite with: student_id, concept, step_at_skip,
+skip_reason (time / overwhelmed / no_clue / other / dismissed / null).
+POST /api/socratic/skip (authenticated, any role) logs the event.
+GET /api/instructor/analytics includes `skip_stats`:
+  - most_skipped_concepts (top 5 by count)
+  - skip_reasons (count by reason)
+  - avg_step_at_skip_by_concept
+
+skip_reason is optional — students can dismiss the prompt without selecting
+a reason (logged as null). The SkipButton also offers a "dismissed" reason
+when the dialog is closed via the X button.
+
+**Alternatives Considered:**
+- Log all socratic interactions (full conversation) — rejected, privacy
+  concern; skip events are sufficient for curriculum analytics.
+- External analytics service — rejected, keeps all data self-hosted.
+
+**Consequences:**
+- Instructors can identify which concepts students find most confusing
+  in Guided Discovery mode specifically.
+- Skip data is separate from exam mastery data — two independent signals
+  about student engagement with a concept.
+
+| AI Suggested | AI Accepted | AI Notes |
+|---|---|---|
+| Yes | Yes | Lightweight event table matches existing patterns (tutor_feedback) |

@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
+import { TutorModeProvider } from './contexts/TutorModeContext'
 import AppLayout from './components/layout/AppLayout'
 import Dashboard from './pages/Dashboard'
 import GraphView from './pages/GraphView'
@@ -21,6 +22,7 @@ function App() {
   const onTutor = location.pathname === '/'
 
   return (
+    <TutorModeProvider>
     <AppLayout>
       {/* Dashboard is always mounted so the 3D map preserves expanded state */}
       <div style={{ display: onTutor ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
@@ -38,6 +40,7 @@ function App() {
         </Routes>
       )}
     </AppLayout>
+    </TutorModeProvider>
   )
 }
 

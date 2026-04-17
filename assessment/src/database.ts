@@ -203,11 +203,22 @@ function initializeSchema(): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS skip_events (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      concept TEXT NOT NULL,
+      step_at_skip INTEGER NOT NULL,
+      skip_reason TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tutor_feedback_student ON tutor_feedback(student_id);
     CREATE INDEX IF NOT EXISTS idx_tutor_feedback_ref ON tutor_feedback(reference_id);
     CREATE INDEX IF NOT EXISTS idx_discussion_posts_concept ON discussion_posts(concept);
     CREATE INDEX IF NOT EXISTS idx_discussion_posts_resolved ON discussion_posts(is_resolved);
     CREATE INDEX IF NOT EXISTS idx_discussion_replies_post ON discussion_replies(post_id);
+    CREATE INDEX IF NOT EXISTS idx_skip_events_student ON skip_events(student_id);
+    CREATE INDEX IF NOT EXISTS idx_skip_events_concept ON skip_events(concept);
   `);
 
   // Add continued_after_mastery column if it doesn't exist (safe migration)

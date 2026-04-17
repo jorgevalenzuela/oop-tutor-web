@@ -1,22 +1,9 @@
-# GUARDRAIL UPGRADE PATH (Phase 2)
-# When hardware is upgraded to 16GB+ RAM:
-# 1. Run: ollama pull gemma2:9b
-# 2. Replace the Anthropic API call in classify_input() with:
-#
-#    import ollama
-#    raw = await anyio.to_thread.run_sync(
-#        lambda: ollama.generate(model="gemma2:9b", prompt=prompt)["response"]
-#    )
-#
-# 3. Remove ANTHROPIC_API_KEY dependency from guardrail.
-# The CLASSIFICATION_PROMPT and JSON response parsing remain identical.
-# Estimated RAM requirement: 10-12 GB for gemma2:9b in 4-bit quantisation.
 
 """
 Guardrail for the OOP Tutor query endpoint.
 
-A single Claude API call classifies every student input into one of four
-categories.  No keyword lists, no regex, no layered rules.
+A single Ollama (gemma2:9b) call classifies every student input into one of
+four categories.  No keyword lists, no regex, no layered rules.
 
 Classification categories
   OOP_QUESTION  — genuine OOP / CS question → proceed to RAG pipeline
@@ -27,7 +14,7 @@ Classification categories
 Confidence gate: if confidence < 0.75 the input is treated as unclear
 and the student is asked to rephrase.
 
-Fail-open: if the Claude API call fails for any reason the question is
+Fail-open: if the Ollama call fails for any reason the question is
 allowed through so the tutor never goes down due to guardrail failure.
 
 Result responses
@@ -41,8 +28,6 @@ Result responses
 
 import json
 import hashlib
-import os
-import asyncio
 from dataclasses import dataclass
 from typing import Optional
 import anyio
@@ -143,29 +128,16 @@ def response_is_valid(parsed: dict) -> bool:
 
 # ─── Classifier ───────────────────────────────────────────────────────────────
 
-def _call_claude_sync(question: str) -> GuardrailResult:
+def _call_ollama_sync(question: str) -> GuardrailResult:
     """
-    Synchronous Claude API call — runs in a thread via anyio.
+    Synchronous Ollama call — runs in a thread via anyio.
     Returns GuardrailResult(allow=True, response=None) on any error (fail-open).
     """
     try:
-        import anthropic
+        import ollama
 
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        if not api_key:
-            # No key configured → fail-open so the tutor keeps working
-            return GuardrailResult(allow=True, response=None)
-
-        client = anthropic.Anthropic(api_key=api_key)
         prompt = CLASSIFICATION_PROMPT.format(question=question)
-
-        message = client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=128,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        raw = message.content[0].text.strip()
+        raw = ollama.generate(model="gemma2:9b", prompt=prompt)["response"].strip()
 
         # Strip markdown code fences if present
         if raw.startswith("```"):
@@ -200,7 +172,7 @@ def _call_claude_sync(question: str) -> GuardrailResult:
 
 async def classify_input(question: str) -> GuardrailResult:
     """
-    Classify student input using Claude API.
+    Classify student input using Ollama (gemma2:9b).
     Results are cached by SHA-256 of the question so the same input is
     never classified twice.
     """
@@ -208,6 +180,6 @@ async def classify_input(question: str) -> GuardrailResult:
     if cache_key in _cache:
         return _cache[cache_key]
 
-    result = await anyio.to_thread.run_sync(_call_claude_sync, question)
+    result = await anyio.to_thread.run_sync(_call_ollama_sync, question)
     _cache[cache_key] = result
     return result

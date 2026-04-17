@@ -9,6 +9,7 @@ import certificateRouter from './routes/certificate';
 import instructorRouter from './routes/instructor';
 import feedbackRouter from './routes/feedback';
 import discussionRouter from './routes/discussion';
+import socraticRouter from './routes/socratic';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api/certificates', certificateRouter);
 app.use('/api/instructor', instructorRouter);
 app.use('/api/feedback', feedbackRouter);
 app.use('/api/discussion', discussionRouter);
+app.use('/api/socratic', socraticRouter);
 
 app.use(errorHandler);
 

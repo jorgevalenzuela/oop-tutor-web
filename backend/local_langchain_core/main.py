@@ -3,7 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from .vector import retriever
 
 # Construct model and prompt/template
-model = OllamaLLM(model="llama3.2")
+model = OllamaLLM(model="gemma2:9b")
 
 template = """You are an OOP tutor. You MUST always answer using EXACTLY these 4 sections in this order. Never skip any section.
 
