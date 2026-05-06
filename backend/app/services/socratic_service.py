@@ -15,6 +15,7 @@ when is_complete=True.
 """
 
 import json
+import os
 from typing import List, Optional
 
 import anyio
@@ -132,7 +133,7 @@ def _select_tone(bloom_level: int, student_message: str) -> str:
 
 # ─── Synchronous Claude call ──────────────────────────────────────────────────
 
-def _call_ollama_sync(
+def _call_claude_sync(
     concept: str,
     step: int,
     bloom_level: int,
@@ -141,11 +142,15 @@ def _call_ollama_sync(
     context_text: str,
 ) -> dict:
     """
-    Synchronous Ollama call — runs in a thread via anyio.
+    Synchronous Anthropic API call — runs in a thread via anyio.
     Returns safe fallback dict on any error.
     """
     try:
-        import ollama
+        import anthropic
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            return _fallback_response(concept, step)
 
         tone = _select_tone(bloom_level, student_message)
 
@@ -167,7 +172,14 @@ def _call_ollama_sync(
             history=history_text,
         )
 
-        raw = ollama.generate(model="gemma2:9b", prompt=prompt)["response"].strip()
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        raw = message.content[0].text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -232,7 +244,7 @@ async def get_socratic_response(
     context_text = "\n".join(str(doc) for doc in docs[:3]) if docs else ""
 
     result = await anyio.to_thread.run_sync(
-        lambda: _call_ollama_sync(
+        lambda: _call_claude_sync(
             concept, step, bloom_level, history, student_message, context_text
         )
     )

@@ -1,9 +1,9 @@
 """
 POST /api/socratic/chat — Guided Discovery (Socratic-Zuela) endpoint.
 
-Applies the same input guardrail as /api/query, then delegates to
-socratic_service.get_socratic_response() which runs Jorge Valenzuela's
-6-step pedagogical method.
+Applies the input guardrail only at steps 3-4 (Bridge / Formalize), then
+delegates to socratic_service.get_socratic_response() which runs Jorge
+Valenzuela's 6-step pedagogical method.
 
 Does NOT modify /api/query — fully additive.
 """
@@ -56,15 +56,16 @@ async def socratic_chat(payload: dict):
         "yep", "nope", "yeah", "nah", "interesting", "true",
     }
 
-    # Apply semantic guardrail only from Step 3 onwards.
-    # Steps 1-2 (Activate / Anchor) intentionally invite free-association and
-    # real-world analogies — "encapsulation reminds me of a medicine capsule" is
-    # a perfect Step 1 response, not an off-topic question.
+    # Guardrail window: steps 3-4 only (Bridge and Formalize).
+    # Steps 1-2: free association — any response is valid by design.
+    # Steps 5-6: Implement and Confirm — student is wrapping up; expressions
+    #   like "I want to code this" or "can I explain it to a friend?" are
+    #   completion signals, not off-topic messages.
     _is_short_affirmative = (
         student_message.lower().strip() in SHORT_AFFIRMATIVES
         or len(student_message.split()) <= 3
     )
-    if student_message and step > 2 and not _is_short_affirmative:
+    if student_message and 3 <= step <= 4 and not _is_short_affirmative:
         guard = await classify_input(student_message)
         if not guard.allow:
             fallback_msg = (
