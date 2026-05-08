@@ -197,7 +197,7 @@ function CertificateSection() {
   }
 
   const verifyUrl = cert
-    ? `http://localhost:3002/api/certificates/verify/${cert.verification_code}`
+    ? `${import.meta.env.VITE_ASSESSMENT_API_URL || 'http://localhost:3002'}/api/certificates/verify/${cert.verification_code}`
     : null
 
   return (

@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE_URL = 'http://localhost:3002'
+const BASE_URL = import.meta.env.VITE_ASSESSMENT_API_URL || 'http://localhost:3002'
 
 let authToken: string | null = null
 

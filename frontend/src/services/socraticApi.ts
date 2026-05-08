@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-const TUTOR_URL = 'http://localhost:8000'
-const ASSESSMENT_URL = 'http://localhost:3002'
+const TUTOR_URL = import.meta.env.VITE_RAG_API_URL || 'http://localhost:8000'
+const ASSESSMENT_URL = import.meta.env.VITE_ASSESSMENT_API_URL || 'http://localhost:3002'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
