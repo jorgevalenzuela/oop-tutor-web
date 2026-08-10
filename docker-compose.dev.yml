@@ -1,0 +1,99 @@
+# OOP Tutor Web — Development
+# Target: NVIDIA DGX Spark — Ubuntu 24.04
+# Access via: http://localhost:5174 (or server IP)
+#
+# Ollama runs on HOST for GPU access
+# Start Ollama first: ollama serve
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down
+#   docker compose -f docker-compose.dev.yml logs -f [service]
+
+name: oop-tutor-dev
+
+services:
+
+  # ── RAG Backend ──────────────────────────
+  rag-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: oop-tutor-rag-dev
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8001
+      - ENV=development
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - chroma
+    networks:
+      - oop-tutor-dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Assessment Backend ────────────────────
+  assessment:
+    build:
+      context: ./assessment
+      dockerfile: Dockerfile
+    container_name: oop-tutor-assessment-dev
+    restart: unless-stopped
+    ports:
+      - "3003:3002"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - JWT_SECRET=${JWT_SECRET_DEV}
+      - PORT=3002
+      - ENV=development
+    volumes:
+      - assessment-data-dev:/app/data
+    networks:
+      - oop-tutor-dev
+
+  # ── Frontend (dev server) ─────────────────
+  frontend:
+    image: node:22-alpine
+    container_name: oop-tutor-frontend-dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5174:5173"
+    environment:
+      - VITE_RAG_API_URL=http://localhost:8001
+      - VITE_ASSESSMENT_API_URL=http://localhost:3003
+    volumes:
+      - ./frontend:/app
+    networks:
+      - oop-tutor-dev
+
+  # ── Chroma Vector DB ─────────────────────
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: oop-tutor-chroma-dev
+    restart: unless-stopped
+    ports:
+      - "8002:8001"
+    volumes:
+      - chroma-data-dev:/chroma/chroma
+    networks:
+      - oop-tutor-dev
+
+volumes:
+  assessment-data-dev:
+  chroma-data-dev:
+
+networks:
+  oop-tutor-dev:
+    driver: bridge
