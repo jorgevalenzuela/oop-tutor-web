@@ -8,11 +8,15 @@ Valenzuela's 6-step pedagogical method.
 Does NOT modify /api/query — fully additive.
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.services.guardrail import classify_input
 from app.services.socratic_service import get_socratic_response
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -38,6 +42,8 @@ async def socratic_chat(payload: dict):
     bloom_level = payload.get("bloom_level", 3)
     history = payload.get("history", [])
     student_message = payload.get("student_message", "").strip()
+
+    logger.debug("socratic_chat received step=%r student_message=%r", step, student_message)
 
     if not concept:
         raise HTTPException(status_code=400, detail="missing 'concept' field")
@@ -65,7 +71,18 @@ async def socratic_chat(payload: dict):
         student_message.lower().strip() in SHORT_AFFIRMATIVES
         or len(student_message.split()) <= 3
     )
-    if student_message and 3 <= step <= 4 and not _is_short_affirmative:
+    # Short clarifying questions from students are always valid dialogue turns.
+    _is_short_clarifying_question = (
+        "?" in student_message
+        and len(student_message.split()) < 10
+        and step <= 3
+    )
+    if (
+        student_message
+        and 3 <= step <= 4
+        and not _is_short_affirmative
+        and not _is_short_clarifying_question
+    ):
         guard = await classify_input(student_message)
         if not guard.allow:
             fallback_msg = (
