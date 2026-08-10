@@ -34,3 +34,6 @@ assessment/*.db
 assessment/*.db-wal
 assessment/*.db-shm
 assessment/.env
+.env.development
+.env.production
+.env.*.local
