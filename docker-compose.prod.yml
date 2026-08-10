@@ -71,6 +71,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_RAG_API_URL=
+        - VITE_ASSESSMENT_API_URL=/assessment
     container_name: oop-tutor-frontend-prod
     restart: unless-stopped
     depends_on:
