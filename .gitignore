@@ -37,3 +37,5 @@ assessment/.env
 .env.development
 .env.production
 .env.*.local
+backend/langchain_local_backup/chrome_langchain_db_v2/
+backend/langchain_local_backup/chrome_langchain_db/
