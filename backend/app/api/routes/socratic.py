@@ -73,8 +73,17 @@ async def socratic_chat(payload: dict):
                 if guard.response
                 else "Please keep your messages related to OOP concepts."
             )
+            last_tutor_turn = next(
+                (m.get("content", "") for m in reversed(history) if m.get("role") == "assistant"),
+                "",
+            )
+            reentry = (
+                f" Let's get back to {concept} — what were you thinking about my last question?"
+                if last_tutor_turn
+                else f" Let's get back to {concept} — what comes to mind?"
+            )
             return JSONResponse({
-                "message": fallback_msg,
+                "message": fallback_msg.rstrip() + reentry,
                 "step": step,
                 "tone": "patient_professor",
                 "is_complete": False,

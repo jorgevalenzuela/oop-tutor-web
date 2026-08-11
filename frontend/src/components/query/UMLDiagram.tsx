@@ -10,6 +10,9 @@ mermaid.initialize({
   startOnLoad: false,
   theme: 'default',
   securityLevel: 'loose',
+  // LLM-generated diagrams are often malformed. Without this, mermaid injects
+  // its own error graphic into the DOM outside our container and breaks layout.
+  suppressErrorRendering: true,
 })
 
 function extractMermaidCode(content: string): string {
@@ -61,6 +64,10 @@ export default function UMLDiagram({ mermaidSyntax }: UMLDiagramProps) {
         if (containerRef.current) {
           containerRef.current.innerHTML = ''
         }
+        // Remove any orphaned mermaid error nodes left outside our container
+        document
+          .querySelectorAll('[id^="dmermaid-"]')
+          .forEach((n) => n.remove())
       }
     }
 
@@ -81,7 +88,7 @@ export default function UMLDiagram({ mermaidSyntax }: UMLDiagramProps) {
   return (
     <div
       ref={containerRef}
-      className="uml-diagram flex justify-center items-center min-h-[100px]"
+      className="uml-diagram flex justify-center items-center min-h-[100px] max-h-[400px] overflow-auto"
     />
   )
 }
