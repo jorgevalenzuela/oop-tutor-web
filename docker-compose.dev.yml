@@ -25,7 +25,7 @@ services:
       - "8001:8000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_HOST=http://host.docker.internal:11435
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8001
       - ENV=development
@@ -71,6 +71,7 @@ services:
     ports:
       - "5174:5173"
     environment:
+      - VITE_PROXY_TARGET=http://rag-backend:8000
       - VITE_RAG_API_URL=http://localhost:8001
       - VITE_ASSESSMENT_API_URL=http://localhost:3003
     volumes:
