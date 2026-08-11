@@ -88,7 +88,7 @@ Example output format:
 ]`;
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -100,7 +100,7 @@ Example output format:
 
   let parsed: GeneratedQuestion[];
   try {
-    parsed = JSON.parse(content.text.trim());
+    parsed = JSON.parse(stripJsonFences(content.text));
   } catch {
     throw new Error('Claude returned invalid JSON. Raw: ' + content.text.slice(0, 200));
   }
@@ -178,7 +178,7 @@ ${answerGiven}
 ${gradingPrompt}`;
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 512,
     messages: [
       { role: 'user', content: userPrompt },
@@ -193,7 +193,7 @@ ${gradingPrompt}`;
 
   let result: { score: number; feedback: string; isCorrect: boolean };
   try {
-    result = JSON.parse(content.text.trim());
+    result = JSON.parse(stripJsonFences(content.text));
   } catch {
     throw new Error('Claude grader returned invalid JSON: ' + content.text.slice(0, 200));
   }
@@ -213,4 +213,12 @@ export async function gradeAnswer(question: Question, answerGiven: string): Prom
     return gradeConceptMatching(question, answerGiven);
   }
   return gradeWithAI(question, answerGiven);
+}
+
+/**
+ * Strip markdown code fences from LLM output before JSON.parse.
+ * Claude Sonnet 4.6 wraps JSON responses in ```json fences; Sonnet 4 did not.
+ */
+export function stripJsonFences(text: string): string {
+  return text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 }
