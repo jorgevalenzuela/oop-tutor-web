@@ -1,5 +1,5 @@
 # OOP Tutor — Assessment Backend
-FROM node:22-alpine
+FROM node:22-slim
 WORKDIR /app
 
 COPY package*.json ./
