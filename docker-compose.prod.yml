@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OLLAMA_HOST=http://host.docker.internal:11435
+      - OLLAMA_HOST=http://host.docker.internal:11434
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8001
       - ENV=production
