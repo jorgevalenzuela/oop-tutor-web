@@ -6,14 +6,16 @@ interface UMLDiagramProps {
 }
 
 // Initialize mermaid once
+// LLM-generated diagrams are often malformed. suppressErrorRendering stops mermaid
+// injecting its own error graphic into the DOM outside our container (which breaks
+// page layout). The option exists at runtime in 10.9.x but is absent from its
+// TypeScript types until v11, hence the cast.
 mermaid.initialize({
   startOnLoad: false,
   theme: 'default',
   securityLevel: 'loose',
-  // LLM-generated diagrams are often malformed. Without this, mermaid injects
-  // its own error graphic into the DOM outside our container and breaks layout.
   suppressErrorRendering: true,
-})
+} as Parameters<typeof mermaid.initialize>[0])
 
 function extractMermaidCode(content: string): string {
   // Try to extract mermaid code from markdown code block

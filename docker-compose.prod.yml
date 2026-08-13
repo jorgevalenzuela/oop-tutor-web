@@ -98,8 +98,7 @@ services:
     container_name: oop-tutor-nginx-prod
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "8443:80"
     volumes:
       - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/certs:/etc/nginx/certs:ro
